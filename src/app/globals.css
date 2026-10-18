@@ -4,10 +4,12 @@
 
 @layer base {
   :root {
-    --background: 228 30% 98%;
-    --surface: 0 0% 100%;
-    --surface-border: 220 13% 91%;
-    --foreground: 222 47% 11%;
+    --background: 231 28% 4%;
+    --surface: 228 24% 9%;
+    --surface-border: 226 23% 15%;
+    --foreground: 210 40% 98%;
+    --crimson-primary: #E11D48;
+    --ruby-primary: #DC2626;
   }
 
   .dark {
@@ -25,14 +27,14 @@
   }
 }
 
-/* Custom subtle scrollbars */
+/* Custom subtle Crimson scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(18, 20, 29, 0.6);
+  background: rgba(9, 10, 15, 0.9);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -41,31 +43,54 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(225, 29, 72, 0.5);
+  background: rgba(225, 29, 72, 0.55);
 }
 
-/* Crimson glass effect */
+/* Crimson scientific glass surfaces */
 .glass-panel {
   background: rgba(18, 20, 29, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(30, 34, 48, 0.8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid #1E2230;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .glass-panel:hover {
   border-color: rgba(225, 29, 72, 0.35);
 }
 
+.glass-panel-elevated {
+  background: rgba(24, 27, 38, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(225, 29, 72, 0.2);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px -5px rgba(225, 29, 72, 0.2);
+}
+
+/* Red Lab Crimson Scientific glow */
 .crimson-glow {
   box-shadow: 0 0 25px -4px rgba(225, 29, 72, 0.35);
+}
+
+.crimson-glow-lg {
+  box-shadow: 0 0 40px -5px rgba(225, 29, 72, 0.5);
 }
 
 .crimson-glow-sm {
   box-shadow: 0 0 15px -3px rgba(225, 29, 72, 0.25);
 }
 
-/* Scientific grid background */
+.emerald-glow-sm {
+  box-shadow: 0 0 15px -3px rgba(16, 185, 129, 0.3);
+}
+
+/* Scientific dot grid background */
 .bg-grid-pattern {
-  background-image: radial-gradient(rgba(225, 29, 72, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(225, 29, 72, 0.12) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
 }

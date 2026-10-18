@@ -58,7 +58,7 @@ export function ConsultationManager({ openAddPollModal }: ConsultationManagerPro
     setCommentText('');
   };
 
-  const getVoteBadge = (voteObj?: { vote: VoteType; comment?: string }) => {
+  const getVoteBadge = (voteObj?: { vote: VoteType; comment?: string | null }) => {
     if (!voteObj) {
       return (
         <span className="w-6 h-6 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 flex items-center justify-center text-xs">

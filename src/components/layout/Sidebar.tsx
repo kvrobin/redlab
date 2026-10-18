@@ -12,7 +12,8 @@ import {
   CalendarCheck2,
   GraduationCap,
   FlaskConical,
-  BookOpen,
+  AlertTriangle,
+  Flame,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,7 +22,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
-  const { tasks, milestones, researchLogs } = useStore();
+  const { tasks, milestones, meetings, researchLogs, isSupervisorMode } = useStore();
 
   const totalWords = milestones.reduce((acc, m) => acc + (m.current_words || 0), 0);
   const targetWords = milestones.reduce((acc, m) => acc + (m.target_words || 0), 0);
@@ -30,69 +31,80 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const pendingApprovals = milestones.filter((m) => m.status === 'awaiting_approval').length;
   const activeTasksCount = tasks.filter((t) => t.status !== 'done').length;
 
+  // Check if any meeting is in voting or reschedule_needed state
+  const urgentMeetings = meetings.filter(
+    (m) => m.status === 'voting' || m.status === 'reschedule_needed'
+  );
+  const hasUrgentMeeting = urgentMeetings.length > 0;
+
   const navItems = [
     {
       id: 'dashboard',
-      label: 'Műszerfal',
-      sublabel: 'Összegző áttekintés',
+      label: 'Központ',
+      sublabel: 'Dashboard & Áttekintés',
       icon: LayoutDashboard,
     },
     {
+      id: 'thesis',
+      label: 'Haladási Terv',
+      sublabel: 'Milestones & Kézirat',
+      icon: BookOpenCheck,
+      badge: pendingApprovals > 0 ? `${pendingApprovals} szignó` : undefined,
+      badgeColor: 'bg-amber-600',
+    },
+    {
       id: 'kanban',
-      label: 'Kutatási Feladatok',
-      sublabel: 'Kanban & Teendők',
+      label: 'Kanban Tábla',
+      sublabel: 'Tasks & Teendők',
       icon: KanbanSquare,
       badge: activeTasksCount > 0 ? activeTasksCount : undefined,
     },
     {
-      id: 'thesis',
-      label: 'Szakdolgozat & Fejezetek',
-      sublabel: 'Mérföldkövek & Kézirat',
-      icon: BookOpenCheck,
-      badge: pendingApprovals > 0 ? pendingApprovals : undefined,
-      badgeColor: 'bg-rose-600',
-    },
-    {
-      id: 'labbook',
-      label: 'Kutatási Napló (ELN)',
-      sublabel: 'Kísérleti & Szimulációs Füzet',
-      icon: FlaskConical,
-      badge: researchLogs.length > 0 ? researchLogs.length : undefined,
+      id: 'consultation',
+      label: 'Időpont-egyeztető',
+      sublabel: 'Smart Scheduler',
+      icon: CalendarCheck2,
+      // Piros jelvény, ha van szavazásra váró vagy reschedule_needed megbeszélés
+      badge: hasUrgentMeeting ? `${urgentMeetings.length} szavazás` : undefined,
+      badgeColor: 'bg-red-600 animate-pulse font-bold',
+      isUrgent: hasUrgentMeeting,
     },
     {
       id: 'files',
-      label: 'Fájl & Verziókezelés',
-      sublabel: 'Scientific Git & CAD',
+      label: 'Fájltár & Verziók',
+      sublabel: 'File Vault & Git',
       icon: FolderGit2,
     },
     {
       id: 'literature',
-      label: 'Szakirodalom & DOI',
-      sublabel: 'BibTeX & Cikkek',
+      label: 'Szakirodalom',
+      sublabel: 'Literature Hub & DOI',
       icon: Library,
     },
     {
-      id: 'consultation',
-      label: 'Konzultáció & Szavazás',
-      sublabel: 'Consensus Scheduler Engine',
-      icon: CalendarCheck2,
+      id: 'labbook',
+      label: 'Kutatási Napló',
+      sublabel: 'Lab Logs & ELN',
+      icon: FlaskConical,
+      badge: researchLogs.length > 0 ? researchLogs.length : undefined,
     },
     {
       id: 'supervisor',
       label: 'Témavezetői Központ',
-      sublabel: 'Executive jóváhagyások',
+      sublabel: 'Executive Hub',
       icon: GraduationCap,
       highlight: true,
-      badge: pendingApprovals > 0 ? `${pendingApprovals} feladat` : undefined,
+      badge: pendingApprovals > 0 ? `${pendingApprovals} függőben` : undefined,
+      badgeColor: 'bg-purple-600',
     },
   ];
 
   return (
-    <aside className="w-64 min-h-screen bg-[#0C0E15] border-r border-[#1E2230] flex flex-col justify-between shrink-0">
+    <aside className="w-64 min-h-screen bg-[#0C0E15] border-r border-[#1E2230] flex flex-col justify-between shrink-0 select-none">
       <div>
         {/* Brand Logo & Name */}
         <div className="p-5 border-b border-[#1E2230] flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 via-red-600 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-900/40 border border-rose-400/30">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-950/60 border border-rose-400/30">
             <FlaskConical className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -113,7 +125,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         {/* Main Navigation */}
         <nav className="p-3 space-y-1">
           <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest text-slate-400">
-            Fő Munkafolyamatok
+            Rendszermodulok
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -141,17 +153,27 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
                     }`}
                   />
                   <div className="truncate">
-                    <div className="text-xs font-medium leading-none truncate">{item.label}</div>
-                    <div className="text-[10px] text-slate-400 truncate mt-0.5">{item.sublabel}</div>
+                    <div
+                      className={`text-xs font-semibold leading-tight ${
+                        isActive
+                          ? 'text-white'
+                          : item.highlight
+                          ? 'text-purple-200'
+                          : 'text-slate-300 group-hover:text-white'
+                      }`}
+                    >
+                      {item.label}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono truncate">
+                      {item.sublabel}
+                    </div>
                   </div>
                 </div>
 
                 {item.badge !== undefined && (
                   <span
-                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ml-1.5 shrink-0 ${
-                      item.badgeColor
-                        ? `${item.badgeColor} text-white`
-                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md text-white shrink-0 ml-1.5 ${
+                      item.badgeColor || 'bg-slate-800 text-slate-300'
                     }`}
                   >
                     {item.badge}
@@ -162,43 +184,39 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
           })}
         </nav>
 
-        {/* Workstreams Section */}
-        <div className="p-3 mt-2">
-          <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-slate-400 flex items-center justify-between">
-            <span>Workstreamek</span>
-            <span className="text-[9px] text-slate-400">RED Csapat</span>
+        {/* Workstreams overview pill */}
+        <div className="px-5 py-3 border-t border-[#1E2230]/60 mx-3 mt-2">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-2">
+            Aktív Kutatási Szálak
           </div>
-
-          <div className="mt-2 space-y-1.5">
-            <div className="p-2.5 rounded-lg bg-slate-900/40 border border-[#1E2230] flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-red-500" />
-                <span className="text-xs font-medium text-slate-300">Robin (R)</span>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400">Architektúra</span>
+          <div className="space-y-1.5 text-xs font-mono">
+            <div className="flex items-center justify-between text-slate-300">
+              <span className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-red-500 mr-2" />
+                Robin (Rendszer)
+              </span>
+              <span className="text-[10px] text-slate-400">Dry Lab</span>
             </div>
-
-            <div className="p-2.5 rounded-lg bg-slate-900/40 border border-[#1E2230] flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-xs font-medium text-slate-300">Emma (E)</span>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400">Wet Lab</span>
+            <div className="flex items-center justify-between text-slate-300">
+              <span className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-rose-500 mr-2" />
+                Emma (Reagensek)
+              </span>
+              <span className="text-[10px] text-slate-400">Wet Lab</span>
             </div>
-
-            <div className="p-2.5 rounded-lg bg-slate-900/40 border border-[#1E2230] flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-orange-500" />
-                <span className="text-xs font-medium text-slate-300">Domi (D)</span>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400">Dry Lab & ML</span>
+            <div className="flex items-center justify-between text-slate-300">
+              <span className="flex items-center">
+                <span className="w-2 h-2 rounded-full bg-amber-500 mr-2" />
+                Domi (CAD/Hardver)
+              </span>
+              <span className="text-[10px] text-slate-400">Hardware</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Bottom Thesis Progress Widget */}
-      <div className="p-4 border-t border-[#1E2230] bg-[#090A0F]/50">
+      <div className="p-4 border-t border-[#1E2230] bg-[#090A0F]/60">
         <div className="flex items-center justify-between text-xs mb-1.5">
           <span className="font-medium text-slate-300">Szakdolgozat Haladás</span>
           <span className="font-mono text-xs font-bold text-rose-400">{progressPercent}%</span>

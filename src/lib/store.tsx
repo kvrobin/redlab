@@ -93,6 +93,7 @@ interface StoreContextType {
   notifications: NotificationItem[];
   markNotificationRead: (notifId: string) => void;
   markAllNotificationsRead: () => void;
+  addNotification: (notif: Omit<NotificationItem, 'id' | 'created_at' | 'is_read'>) => void;
   activityLogs: ActivityLog[];
   logActivity: (actionType: string, entityTitle: string, details?: string, targetUrl?: string) => void;
 }
@@ -763,6 +764,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast.success('Minden értesítés olvasottnak jelölve');
   };
 
+  const addNotification = (notif: Omit<NotificationItem, 'id' | 'created_at' | 'is_read'>) => {
+    const newNotif: NotificationItem = {
+      ...notif,
+      id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      created_at: new Date().toISOString(),
+      is_read: false,
+    };
+    const updated = [newNotif, ...notifications];
+    setNotifications(updated);
+    saveState('notifs', updated);
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -802,6 +815,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         notifications,
         markNotificationRead,
         markAllNotificationsRead,
+        addNotification,
         activityLogs,
         logActivity,
       }}
