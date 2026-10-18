@@ -2,106 +2,132 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
-  User,
-  Task,
-  ThesisChapter,
-  LabFile,
-  Paper,
-  ConsultationPoll,
-  ActivityItem,
+  Profile,
+  Milestone,
+  KanbanTask,
+  TaskComment,
+  Meeting,
+  LiteratureItem,
+  RepositoryFile,
+  ResearchLog,
+  ActivityLog,
+  NotificationItem,
   TaskStatus,
-  ChapterStatus,
-  PaperReadStatus,
-  VoteChoice,
+  TaskPriority,
+  WorkstreamType,
+  VoteType,
+  LiteratureStatus,
+  MilestoneStatus,
 } from '@/types';
 import {
-  initialUsers,
-  initialTasks,
-  initialThesisChapters,
-  initialLabFiles,
-  initialPapers,
-  initialConsultationPolls,
-  initialActivities,
+  initialProfiles,
+  initialMilestones,
+  initialKanbanTasks,
+  initialTaskComments,
+  initialMeetings,
+  initialLiteratureItems,
+  initialRepositoryFiles,
+  initialResearchLogs,
+  initialNotifications,
+  initialActivityLogs,
 } from './mockData';
 import { toast } from 'sonner';
 
 interface StoreContextType {
-  currentUser: User;
-  users: User[];
-  setCurrentUserById: (userId: string) => void;
+  currentProfile: Profile;
+  profiles: Profile[];
+  setCurrentProfileById: (profileId: string) => void;
   isSupervisorMode: boolean;
   toggleSupervisorMode: () => void;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
-  
-  // Tasks
-  tasks: Task[];
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'comments'>) => void;
-  updateTask: (taskId: string, updates: Partial<Task>) => void;
+
+  // Kanban Tasks
+  tasks: KanbanTask[];
+  addTask: (task: Omit<KanbanTask, 'id' | 'created_at' | 'updated_at'>) => void;
+  updateTask: (taskId: string, updates: Partial<KanbanTask>) => void;
   moveTask: (taskId: string, newStatus: TaskStatus) => void;
   toggleChecklistItem: (taskId: string, checklistId: string) => void;
-  addTaskComment: (taskId: string, text: string) => void;
   deleteTask: (taskId: string) => void;
 
-  // Thesis
-  thesisChapters: ThesisChapter[];
-  updateChapterContent: (chapterId: string, content: string, newWords?: number) => void;
-  submitChapterForReview: (chapterId: string) => void;
-  supervisorApproveChapter: (chapterId: string, feedbackComment: string) => void;
-  supervisorRequestRevision: (chapterId: string, feedbackComment: string) => void;
+  // Task & Milestone Comments
+  taskComments: TaskComment[];
+  addComment: (taskId?: string, milestoneId?: string, content?: string) => void;
 
-  // Files
-  labFiles: LabFile[];
-  uploadFileVersion: (fileId: string, newVersion: string, changelog: string, fileSizeBytes?: number) => void;
-  addNewFile: (file: Omit<LabFile, 'id' | 'versions'>, initialVersion: string, changelog: string) => void;
+  // Milestones (Thesis chapters & progress)
+  milestones: Milestone[];
+  updateMilestoneContent: (milestoneId: string, content: string, newWords?: number) => void;
+  submitMilestoneForReview: (milestoneId: string) => void;
+  supervisorApproveMilestone: (milestoneId: string, feedback: string) => void;
+  supervisorRequestRevision: (milestoneId: string, feedback: string) => void;
 
-  // Literature
-  papers: Paper[];
-  addPaper: (paper: Omit<Paper, 'id' | 'addedById' | 'addedByName' | 'addedAt' | 'upvotes'>) => void;
-  updatePaperReadStatus: (paperId: string, status: PaperReadStatus) => void;
-  togglePaperUpvote: (paperId: string) => void;
+  // Repository Files (GitHub-style versioning)
+  repositoryFiles: RepositoryFile[];
+  uploadFileVersion: (
+    fileGroupKey: string,
+    fileName: string,
+    folderCategory: WorkstreamType,
+    commitMessage: string,
+    fileSizeBytes?: number,
+    milestoneId?: string
+  ) => void;
 
-  // Consultations
-  consultationPolls: ConsultationPoll[];
-  voteConsultationSlot: (pollId: string, slotId: string, choice: VoteChoice) => void;
-  createConsultationPoll: (poll: Omit<ConsultationPoll, 'id' | 'createdAt' | 'status' | 'createdById' | 'createdByName'>) => void;
-  confirmConsultationSlot: (pollId: string, slotId: string, meetingLink?: string) => void;
+  // Research Logs (Digital Lab Notebook)
+  researchLogs: ResearchLog[];
+  addResearchLog: (log: Omit<ResearchLog, 'id' | 'created_at' | 'author_id' | 'author_name'>) => void;
+  deleteResearchLog: (logId: string) => void;
 
-  // Activity
-  activities: ActivityItem[];
-  logActivity: (actionType: ActivityItem['actionType'], description: string, targetTitle: string) => void;
+  // Literature Items
+  literatureItems: LiteratureItem[];
+  addLiteratureItem: (item: Omit<LiteratureItem, 'id' | 'created_at' | 'updated_at' | 'added_by' | 'upvotes'>) => void;
+  updateLiteratureStatus: (itemId: string, status: LiteratureStatus) => void;
+  toggleLiteratureUpvote: (itemId: string) => void;
+
+  // Meetings & Voting Automation Engine
+  meetings: Meeting[];
+  voteMeetingSlot: (meetingId: string, slotId: string, vote: VoteType, comment?: string) => void;
+  createMeeting: (meeting: Omit<Meeting, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'status'>) => void;
+  confirmMeetingSlot: (meetingId: string, slotId: string, meetingLink?: string) => void;
+
+  // Notifications & Activity Feed
+  notifications: NotificationItem[];
+  markNotificationRead: (notifId: string) => void;
+  markAllNotificationsRead: () => void;
+  activityLogs: ActivityLog[];
+  logActivity: (actionType: string, entityTitle: string, details?: string, targetUrl?: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-const STORAGE_KEY_PREFIX = 'redlab_v1_';
+const STORAGE_KEY_PREFIX = 'redlab_db_v2_';
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [isClient, setIsClient] = useState(false);
-  const [users] = useState<User[]>(initialUsers);
-  const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]); // Robin
+  const [profiles] = useState<Profile[]>(initialProfiles);
+  const [currentProfile, setCurrentProfile] = useState<Profile>(initialProfiles[0]); // Robin
   const [isSupervisorMode, setIsSupervisorMode] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [thesisChapters, setThesisChapters] = useState<ThesisChapter[]>(initialThesisChapters);
-  const [labFiles, setLabFiles] = useState<LabFile[]>(initialLabFiles);
-  const [papers, setPapers] = useState<Paper[]>(initialPapers);
-  const [consultationPolls, setConsultationPolls] = useState<ConsultationPoll[]>(initialConsultationPolls);
-  const [activities, setActivities] = useState<ActivityItem[]>(initialActivities);
+  const [tasks, setTasks] = useState<KanbanTask[]>(initialKanbanTasks);
+  const [taskComments, setTaskComments] = useState<TaskComment[]>(initialTaskComments);
+  const [milestones, setMilestones] = useState<Milestone[]>(initialMilestones);
+  const [repositoryFiles, setRepositoryFiles] = useState<RepositoryFile[]>(initialRepositoryFiles);
+  const [researchLogs, setResearchLogs] = useState<ResearchLog[]>(initialResearchLogs);
+  const [literatureItems, setLiteratureItems] = useState<LiteratureItem[]>(initialLiteratureItems);
+  const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(initialActivityLogs);
 
-  // Load from local storage on client mount
+  // Load from localStorage
   useEffect(() => {
-    setIsClient(true);
     try {
       const storedTheme = localStorage.getItem(`${STORAGE_KEY_PREFIX}theme`) as 'dark' | 'light' | null;
       if (storedTheme) setTheme(storedTheme);
 
-      const storedUserId = localStorage.getItem(`${STORAGE_KEY_PREFIX}user_id`);
-      if (storedUserId) {
-        const found = initialUsers.find((u) => u.id === storedUserId);
+      const storedProfileId = localStorage.getItem(`${STORAGE_KEY_PREFIX}profile_id`);
+      if (storedProfileId) {
+        const found = initialProfiles.find((p) => p.id === storedProfileId);
         if (found) {
-          setCurrentUser(found);
+          setCurrentProfile(found);
           if (found.role === 'supervisor') setIsSupervisorMode(true);
         }
       }
@@ -109,26 +135,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const storedTasks = localStorage.getItem(`${STORAGE_KEY_PREFIX}tasks`);
       if (storedTasks) setTasks(JSON.parse(storedTasks));
 
-      const storedChapters = localStorage.getItem(`${STORAGE_KEY_PREFIX}chapters`);
-      if (storedChapters) setThesisChapters(JSON.parse(storedChapters));
+      const storedMilestones = localStorage.getItem(`${STORAGE_KEY_PREFIX}milestones`);
+      if (storedMilestones) setMilestones(JSON.parse(storedMilestones));
 
       const storedFiles = localStorage.getItem(`${STORAGE_KEY_PREFIX}files`);
-      if (storedFiles) setLabFiles(JSON.parse(storedFiles));
+      if (storedFiles) setRepositoryFiles(JSON.parse(storedFiles));
 
-      const storedPapers = localStorage.getItem(`${STORAGE_KEY_PREFIX}papers`);
-      if (storedPapers) setPapers(JSON.parse(storedPapers));
+      const storedLogs = localStorage.getItem(`${STORAGE_KEY_PREFIX}logs`);
+      if (storedLogs) setResearchLogs(JSON.parse(storedLogs));
 
-      const storedPolls = localStorage.getItem(`${STORAGE_KEY_PREFIX}polls`);
-      if (storedPolls) setConsultationPolls(JSON.parse(storedPolls));
+      const storedLit = localStorage.getItem(`${STORAGE_KEY_PREFIX}literature`);
+      if (storedLit) setLiteratureItems(JSON.parse(storedLit));
 
-      const storedActivities = localStorage.getItem(`${STORAGE_KEY_PREFIX}activities`);
-      if (storedActivities) setActivities(JSON.parse(storedActivities));
+      const storedMeetings = localStorage.getItem(`${STORAGE_KEY_PREFIX}meetings`);
+      if (storedMeetings) setMeetings(JSON.parse(storedMeetings));
+
+      const storedNotifs = localStorage.getItem(`${STORAGE_KEY_PREFIX}notifs`);
+      if (storedNotifs) setNotifications(JSON.parse(storedNotifs));
+
+      const storedActs = localStorage.getItem(`${STORAGE_KEY_PREFIX}activities`);
+      if (storedActs) setActivityLogs(JSON.parse(storedActs));
     } catch (e) {
-      console.error('[RED Lab] Error loading state from localStorage:', e);
+      console.warn('[RED Lab] Error hydrating store from localStorage:', e);
     }
   }, []);
 
-  // Save to localStorage helpers
   const saveState = (key: string, data: unknown) => {
     if (typeof window !== 'undefined') {
       try {
@@ -162,17 +193,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  const setCurrentUserById = (userId: string) => {
-    const found = users.find((u) => u.id === userId);
+  const setCurrentProfileById = (profileId: string) => {
+    const found = profiles.find((p) => p.id === profileId);
     if (found) {
-      setCurrentUser(found);
+      setCurrentProfile(found);
       if (found.role === 'supervisor') {
         setIsSupervisorMode(true);
       }
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}user_id`, userId);
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}profile_id`, profileId);
       }
-      toast.success(`Felhasználó váltva: ${found.name}`, {
+      toast.success(`Felhasználó váltva: ${found.full_name}`, {
         description: `${found.title} (${found.role === 'supervisor' ? 'Témavezető' : 'Kutató'})`,
       });
     }
@@ -183,371 +214,561 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast.info(!isSupervisorMode ? 'Témavezetői Vezetői Nézet bekapcsolva' : 'Standard Kutatói Nézet visszaállítva');
   };
 
-  const logActivity = (actionType: ActivityItem['actionType'], description: string, targetTitle: string) => {
-    const newItem: ActivityItem = {
+  // Activity Logger
+  const logActivity = (actionType: string, entityTitle: string, details?: string, targetUrl?: string) => {
+    const newAct: ActivityLog = {
       id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      timestamp: new Date().toISOString(),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      actionType,
-      description,
-      targetTitle,
+      actor_id: currentProfile.id,
+      actor_name: currentProfile.full_name,
+      action_type: actionType,
+      entity_title: entityTitle,
+      details,
+      target_url: targetUrl,
+      created_at: new Date().toISOString(),
     };
-    setActivities((prev) => {
-      const updated = [newItem, ...prev.slice(0, 49)];
+    setActivityLogs((prev) => {
+      const updated = [newAct, ...prev.slice(0, 49)];
       saveState('activities', updated);
       return updated;
     });
   };
 
-  // Task Actions
-  const addTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'comments'>) => {
-    const newTask: Task = {
-      ...taskData,
-      id: `task-${Date.now()}`,
-      comments: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+  // Push Notification Helper
+  const pushNotification = (recipientId: string, title: string, message: string, severity: NotificationItem['severity'], linkUrl?: string) => {
+    const newNotif: NotificationItem = {
+      id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      recipient_id: recipientId,
+      title,
+      message,
+      link_url: linkUrl,
+      is_read: false,
+      severity,
+      created_at: new Date().toISOString(),
     };
-    setTasks((prev) => {
-      const updated = [newTask, ...prev];
-      saveState('tasks', updated);
+    setNotifications((prev) => {
+      const updated = [newNotif, ...prev];
+      saveState('notifs', updated);
       return updated;
     });
-    logActivity('task', 'új kutatási feladatot hozott létre:', newTask.title);
-    toast.success('Feladat sikeresen létrehozva!', { description: newTask.title });
   };
 
-  const updateTask = (taskId: string, updates: Partial<Task>) => {
-    setTasks((prev) => {
-      const updated = prev.map((t) => (t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t));
-      saveState('tasks', updated);
+  // AUTOMATION TRIGGER 4.3: recalculate_milestone_progress
+  const recalculateMilestone = (milestoneId: string, updatedTasks: KanbanTask[]) => {
+    const msTasks = updatedTasks.filter((t) => t.milestone_id === milestoneId);
+    if (msTasks.length === 0) return;
+    const doneCount = msTasks.filter((t) => t.status === 'done').length;
+    const progressPercent = Math.round((doneCount / msTasks.length) * 100);
+
+    setMilestones((prev) => {
+      const updated = prev.map((m) => {
+        if (m.id !== milestoneId) return m;
+        let newStatus = m.status;
+        if (progressPercent === 100 && m.status !== 'approved') {
+          newStatus = 'awaiting_approval';
+        } else if (progressPercent > 0 && m.status === 'upcoming') {
+          newStatus = 'in_progress';
+        }
+        return {
+          ...m,
+          progress_percent: progressPercent,
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        };
+      });
+      saveState('milestones', updated);
       return updated;
     });
+  };
+
+  // Kanban Tasks CRUD
+  const addTask = (taskData: Omit<KanbanTask, 'id' | 'created_at' | 'updated_at'>) => {
+    const newTask: KanbanTask = {
+      ...taskData,
+      id: `task-${Date.now()}`,
+      created_by: currentProfile.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const updated = [newTask, ...tasks];
+    setTasks(updated);
+    saveState('tasks', updated);
+
+    if (newTask.milestone_id) {
+      recalculateMilestone(newTask.milestone_id, updated);
+    }
+    logActivity('TASK_CREATED', newTask.title, 'új feladat rögzítve a Kanban táblán', '/kanban');
+    toast.success('Feladat sikeresen létrehozva!');
+  };
+
+  const updateTask = (taskId: string, updates: Partial<KanbanTask>) => {
+    const updated = tasks.map((t) => (t.id === taskId ? { ...t, ...updates, updated_at: new Date().toISOString() } : t));
+    setTasks(updated);
+    saveState('tasks', updated);
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (task?.milestone_id) {
+      recalculateMilestone(task.milestone_id, updated);
+    }
   };
 
   const moveTask = (taskId: string, newStatus: TaskStatus) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
+
     const statusHungarian = {
+      backlog: 'Backlogba',
       todo: 'Teendőkhöz',
       in_progress: 'Folyamatban lévőkhöz',
-      review: 'Felülvizsgálathoz',
+      review_professor: 'Professzori felülvizsgálatra',
       done: 'Befejezettekhez',
     }[newStatus];
 
-    updateTask(taskId, { status: newStatus });
-    logActivity('task', `áthelyezte a feladatot a ${statusHungarian}:`, task.title);
+    const updated = tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus, updated_at: new Date().toISOString() } : t));
+    setTasks(updated);
+    saveState('tasks', updated);
+
+    if (task.milestone_id) {
+      recalculateMilestone(task.milestone_id, updated);
+    }
+
+    if (newStatus === 'review_professor') {
+      profiles.filter((p) => p.role === 'supervisor').forEach((sup) => {
+        pushNotification(
+          sup.id,
+          'Feladat professzori bírálatra vár 📋',
+          `"${task.title}" felülvizsgálatra került küldve.`,
+          'warning',
+          '/kanban'
+        );
+      });
+    }
+
+    logActivity('TASK_MOVED', task.title, `áthelyezve a következő oszlopba: ${statusHungarian}`, '/kanban');
     toast.success(`Feladat mozgatva: ${statusHungarian}`);
   };
 
   const toggleChecklistItem = (taskId: string, checklistId: string) => {
-    setTasks((prev) => {
-      const updated = prev.map((t) => {
-        if (t.id !== taskId) return t;
-        const updatedChecklist = t.checklist.map((item) =>
-          item.id === checklistId ? { ...item, completed: !item.completed } : item
-        );
-        return { ...t, checklist: updatedChecklist, updatedAt: new Date().toISOString() };
-      });
-      saveState('tasks', updated);
-      return updated;
+    const updated = tasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const updatedChecklist = t.checklist.map((item) =>
+        item.id === checklistId ? { ...item, done: !item.done } : item
+      );
+      return { ...t, checklist: updatedChecklist, updated_at: new Date().toISOString() };
     });
-  };
-
-  const addTaskComment = (taskId: string, text: string) => {
-    const newComment = {
-      id: `c-${Date.now()}`,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userRole: currentUser.role,
-      text,
-      createdAt: new Date().toISOString(),
-    };
-    setTasks((prev) => {
-      const updated = prev.map((t) => (t.id === taskId ? { ...t, comments: [...t.comments, newComment] } : t));
-      saveState('tasks', updated);
-      return updated;
-    });
-    toast.success('Megjegyzés hozzáadva');
+    setTasks(updated);
+    saveState('tasks', updated);
   };
 
   const deleteTask = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
-    setTasks((prev) => {
-      const updated = prev.filter((t) => t.id !== taskId);
-      saveState('tasks', updated);
-      return updated;
-    });
+    const updated = tasks.filter((t) => t.id !== taskId);
+    setTasks(updated);
+    saveState('tasks', updated);
+
+    if (task?.milestone_id) {
+      recalculateMilestone(task.milestone_id, updated);
+    }
     if (task) {
-      logActivity('task', 'törölte a feladatot:', task.title);
+      logActivity('TASK_DELETED', task.title, 'törölve a tábláról', '/kanban');
       toast.info('Feladat törölve');
     }
   };
 
-  // Thesis Actions
-  const updateChapterContent = (chapterId: string, content: string, newWords?: number) => {
-    setThesisChapters((prev) => {
-      const updated = prev.map((ch) => {
-        if (ch.id !== chapterId) return ch;
-        const wordCount = newWords !== undefined ? newWords : content.trim().split(/\s+/).filter(Boolean).length;
+  const addComment = (taskId?: string, milestoneId?: string, content = '') => {
+    if (!content.trim()) return;
+    const newComm: TaskComment = {
+      id: `c-${Date.now()}`,
+      task_id: taskId,
+      milestone_id: milestoneId,
+      author_id: currentProfile.id,
+      author_name: currentProfile.full_name,
+      content: content.trim(),
+      is_professor_note: currentProfile.role === 'supervisor',
+      created_at: new Date().toISOString(),
+    };
+    setTaskComments((prev) => [newComm, ...prev]);
+    toast.success('Megjegyzés hozzáadva');
+  };
+
+  // Milestones CRUD & Approvals
+  const updateMilestoneContent = (milestoneId: string, content: string, newWords?: number) => {
+    setMilestones((prev) => {
+      const updated = prev.map((m) => {
+        if (m.id !== milestoneId) return m;
+        const words = newWords !== undefined ? newWords : content.trim().split(/\s+/).filter(Boolean).length;
         return {
-          ...ch,
-          contentDraft: content,
-          currentWords: wordCount,
-          lastModified: new Date().toISOString(),
+          ...m,
+          content_draft: content,
+          current_words: words,
+          updated_at: new Date().toISOString(),
         };
       });
-      saveState('chapters', updated);
+      saveState('milestones', updated);
       return updated;
     });
     toast.success('Fejezet piszkozat mentve');
   };
 
-  const submitChapterForReview = (chapterId: string) => {
-    const chapter = thesisChapters.find((ch) => ch.id === chapterId);
-    if (!chapter) return;
-    setThesisChapters((prev) => {
-      const updated = prev.map((ch) =>
-        ch.id === chapterId ? { ...ch, status: 'felulvizsgalatra_var' as ChapterStatus, lastModified: new Date().toISOString() } : ch
+  const submitMilestoneForReview = (milestoneId: string) => {
+    const ms = milestones.find((m) => m.id === milestoneId);
+    if (!ms) return;
+    setMilestones((prev) => {
+      const updated = prev.map((m) =>
+        m.id === milestoneId ? { ...m, status: 'awaiting_approval' as MilestoneStatus, updated_at: new Date().toISOString() } : m
       );
-      saveState('chapters', updated);
+      saveState('milestones', updated);
       return updated;
     });
-    logActivity('thesis', 'felülvizsgálatra beküldte a fejezetet a témavezetőknek:', `${chapter.chapterNumber}. ${chapter.title}`);
-    toast.success('Fejezet beküldve témavezetői felülvizsgálatra!', {
-      description: 'A professzorok értesítést kaptak a jóváhagyási listán.',
+
+    profiles.filter((p) => p.role === 'supervisor').forEach((sup) => {
+      pushNotification(
+        sup.id,
+        'Mérföldkő jóváhagyásra vár 🎓',
+        `A(z) "${ms.title}" fejezet készen áll a professzori szignóra.`,
+        'urgent',
+        '/thesis'
+      );
     });
+
+    logActivity('MILESTONE_SUBMITTED', ms.title, 'felülvizsgálatra beküldve a professzoroknak', '/thesis');
+    toast.success('Fejezet beküldve témavezetői felülvizsgálatra!');
   };
 
-  const supervisorApproveChapter = (chapterId: string, feedbackComment: string) => {
-    const chapter = thesisChapters.find((ch) => ch.id === chapterId);
-    if (!chapter) return;
-    const feedback = {
-      id: `fb-${Date.now()}`,
-      supervisorId: currentUser.id,
-      supervisorName: currentUser.name,
-      comment: feedbackComment || 'A fejezet elméleti és formai szempontból kifogástalan, hivatalosan jóváhagyva.',
-      createdAt: new Date().toISOString(),
-      statusChange: 'jovahagyva' as ChapterStatus,
-    };
-    setThesisChapters((prev) => {
-      const updated = prev.map((ch) => {
-        if (ch.id !== chapterId) return ch;
+  const supervisorApproveMilestone = (milestoneId: string, feedback: string) => {
+    const ms = milestones.find((m) => m.id === milestoneId);
+    if (!ms) return;
+
+    setMilestones((prev) => {
+      const updated = prev.map((m) => {
+        if (m.id !== milestoneId) return m;
         return {
-          ...ch,
-          status: 'jovahagyva' as ChapterStatus,
-          supervisorApprovedAt: new Date().toISOString(),
-          supervisorApprovedBy: currentUser.name,
-          feedbackHistory: [feedback, ...ch.feedbackHistory],
-          lastModified: new Date().toISOString(),
+          ...m,
+          status: 'approved' as MilestoneStatus,
+          supervisor_feedback: feedback || 'Hivatalosan jóváhagyva a végleges disszertációhoz.',
+          approved_by: currentProfile.id,
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
       });
-      saveState('chapters', updated);
+      saveState('milestones', updated);
       return updated;
     });
-    logActivity('approval', 'hivatalosan jóváhagyta és ellátta pecséttel a fejezetet:', `${chapter.chapterNumber}. ${chapter.title}`);
-    toast.success('Fejezet sikeresen jóváhagyva (Sign-Off)', {
-      description: `${chapter.title} státusza: Jóváhagyva.`,
+
+    profiles.forEach((p) => {
+      pushNotification(
+        p.id,
+        'Mérföldkő hivatalosan jóváhagyva! ✅',
+        `A(z) "${ms.title}" fejezetet ${currentProfile.full_name} ellátta digitális szignóval.`,
+        'success',
+        '/thesis'
+      );
     });
+
+    logActivity('MILESTONE_APPROVED', ms.title, `Jóváhagyva ${currentProfile.full_name} által: "${feedback}"`, '/thesis');
+    toast.success('Mérföldkő sikeresen jóváhagyva (Sign-Off)!');
   };
 
-  const supervisorRequestRevision = (chapterId: string, feedbackComment: string) => {
-    const chapter = thesisChapters.find((ch) => ch.id === chapterId);
-    if (!chapter) return;
-    const feedback = {
-      id: `fb-${Date.now()}`,
-      supervisorId: currentUser.id,
-      supervisorName: currentUser.name,
-      comment: feedbackComment || 'Kérjük az adatok és ábrák kiegészítését a megadott megjegyzések alapján.',
-      createdAt: new Date().toISOString(),
-      statusChange: 'tervezet' as ChapterStatus,
-    };
-    setThesisChapters((prev) => {
-      const updated = prev.map((ch) => {
-        if (ch.id !== chapterId) return ch;
+  const supervisorRequestRevision = (milestoneId: string, feedback: string) => {
+    const ms = milestones.find((m) => m.id === milestoneId);
+    if (!ms) return;
+
+    setMilestones((prev) => {
+      const updated = prev.map((m) => {
+        if (m.id !== milestoneId) return m;
         return {
-          ...ch,
-          status: 'tervezet' as ChapterStatus,
-          feedbackHistory: [feedback, ...ch.feedbackHistory],
-          lastModified: new Date().toISOString(),
+          ...m,
+          status: 'revision_requested' as MilestoneStatus,
+          supervisor_feedback: feedback || 'Átdolgozás és kiegészítés szükséges.',
+          updated_at: new Date().toISOString(),
         };
       });
-      saveState('chapters', updated);
+      saveState('milestones', updated);
       return updated;
     });
-    logActivity('thesis', 'átdolgozást és korrekciót kért a fejezethez:', `${chapter.chapterNumber}. ${chapter.title}`);
-    toast.info('Átdolgozási kérelem elküldve a kutatóknak', {
-      description: feedbackComment,
+
+    profiles.filter((p) => p.role === 'researcher').forEach((r) => {
+      pushNotification(
+        r.id,
+        'Átdolgozási észrevétel érkezett 📝',
+        `A(z) "${ms.title}" fejezethez javítási kérelem érkezett: ${feedback}`,
+        'warning',
+        '/thesis'
+      );
     });
+
+    logActivity('MILESTONE_REVISION', ms.title, `Átdolgozás kérve: "${feedback}"`, '/thesis');
+    toast.info('Átdolgozási kérelem elküldve a kutatóknak!');
   };
 
-  // Files Actions
-  const uploadFileVersion = (fileId: string, newVersion: string, changelog: string, fileSizeBytes = 12500000) => {
-    const file = labFiles.find((f) => f.id === fileId);
-    if (!file) return;
-    const hash = Math.random().toString(16).substring(2, 9);
-    const newVer = {
-      version: newVersion,
-      changelog,
-      uploadedById: currentUser.id,
-      uploadedByName: currentUser.name,
-      uploadedAt: new Date().toISOString(),
-      commitHash: hash,
-      fileSizeBytes,
+  // AUTOMATION TRIGGER 4.1: handle_file_versioning
+  const uploadFileVersion = (
+    fileGroupKey: string,
+    fileName: string,
+    folderCategory: WorkstreamType,
+    commitMessage: string,
+    fileSizeBytes = 12500000,
+    milestoneId?: string
+  ) => {
+    const existing = repositoryFiles.filter((f) => f.file_group_key === fileGroupKey);
+    const maxVer = existing.reduce((max, f) => Math.max(max, f.version_number), 0);
+    const newVersionNumber = maxVer + 1;
+
+    // Previous files set is_latest = false
+    const previousUpdated = repositoryFiles.map((f) =>
+      f.file_group_key === fileGroupKey ? { ...f, is_latest: false } : f
+    );
+
+    const newFile: RepositoryFile = {
+      id: `repo-${Date.now()}`,
+      folder_category: folderCategory,
+      file_group_key: fileGroupKey,
+      file_name: fileName,
+      version_number: newVersionNumber,
+      storage_path: `/${folderCategory}/${fileName}_v${newVersionNumber}`,
+      file_size_bytes: fileSizeBytes,
+      mime_type: fileName.endsWith('.stl')
+        ? 'model/stl'
+        : fileName.endsWith('.py')
+        ? 'text/x-python'
+        : fileName.endsWith('.csv')
+        ? 'text/csv'
+        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      commit_message: commitMessage || `v${newVersionNumber}: Verziófrissítés`,
+      is_latest: true,
+      milestone_id: milestoneId,
+      uploaded_by: currentProfile.id,
+      uploaded_by_name: currentProfile.full_name,
+      created_at: new Date().toISOString(),
     };
-    setLabFiles((prev) => {
-      const updated = prev.map((f) => {
-        if (f.id !== fileId) return f;
-        return {
-          ...f,
-          currentVersion: newVersion,
-          versions: [newVer, ...f.versions],
-        };
-      });
-      saveState('files', updated);
-      return updated;
-    });
-    logActivity('file', `új verziót töltött fel (${newVersion}) a fájlhoz:`, file.name);
-    toast.success(`Fájl verzió feltöltve: ${newVersion}`, { description: file.name });
+
+    const finalFiles = [newFile, ...previousUpdated];
+    setRepositoryFiles(finalFiles);
+    saveState('files', finalFiles);
+
+    logActivity('FILE_UPLOADED', fileName, `új verzió commitolva (v${newVersionNumber}): "${commitMessage}"`, '/files');
+    toast.success(`Fájl verzió commitolva: v${newVersionNumber} (${fileName})`);
   };
 
-  const addNewFile = (fileData: Omit<LabFile, 'id' | 'versions'>, initialVersion: string, changelog: string) => {
-    const hash = Math.random().toString(16).substring(2, 9);
-    const newLabFile: LabFile = {
-      ...fileData,
-      id: `file-${Date.now()}`,
-      currentVersion: initialVersion,
-      versions: [
-        {
-          version: initialVersion,
-          changelog: changelog || 'Kezdeti feltöltés a kutatócsoporti repóba.',
-          uploadedById: currentUser.id,
-          uploadedByName: currentUser.name,
-          uploadedAt: new Date().toISOString(),
-          commitHash: hash,
-          fileSizeBytes: 8500000,
+  // Research Logs (Digital Lab Notebook)
+  const addResearchLog = (logData: Omit<ResearchLog, 'id' | 'created_at' | 'author_id' | 'author_name'>) => {
+    const newLog: ResearchLog = {
+      ...logData,
+      id: `log-${Date.now()}`,
+      author_id: currentProfile.id,
+      author_name: currentProfile.full_name,
+      created_at: new Date().toISOString(),
+    };
+    const updated = [newLog, ...researchLogs];
+    setResearchLogs(updated);
+    saveState('logs', updated);
+    logActivity('LOG_CREATED', newLog.title, 'új kutatási naplóbejegyzés rögzítve', '/labbook');
+    toast.success('Kutatási naplóbejegyzés sikeresen mentve!');
+  };
+
+  const deleteResearchLog = (logId: string) => {
+    const updated = researchLogs.filter((l) => l.id !== logId);
+    setResearchLogs(updated);
+    saveState('logs', updated);
+    toast.info('Naplóbejegyzés törölve');
+  };
+
+  // Literature Items
+  const addLiteratureItem = (itemData: Omit<LiteratureItem, 'id' | 'created_at' | 'updated_at' | 'added_by' | 'upvotes'>) => {
+    const newItem: LiteratureItem = {
+      ...itemData,
+      id: `lit-${Date.now()}`,
+      added_by: currentProfile.id,
+      upvotes: [currentProfile.id],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const updated = [newItem, ...literatureItems];
+    setLiteratureItems(updated);
+    saveState('literature', updated);
+    logActivity('PAPER_ADDED', newItem.title, `új szakirodalom hozzáadva (${newItem.journal || 'DOI'})`, '/literature');
+    toast.success('Szakirodalom sikeresen rögzítve!');
+  };
+
+  const updateLiteratureStatus = (itemId: string, status: LiteratureStatus) => {
+    const updated = literatureItems.map((item) =>
+      item.id === itemId ? { ...item, status, updated_at: new Date().toISOString() } : item
+    );
+    setLiteratureItems(updated);
+    saveState('literature', updated);
+    toast.success('Olvasottsági státusz frissítve');
+  };
+
+  const toggleLiteratureUpvote = (itemId: string) => {
+    const updated = literatureItems.map((item) => {
+      if (item.id !== itemId) return item;
+      const votes = item.upvotes || [];
+      const hasUpvoted = votes.includes(currentProfile.id);
+      const newUpvotes = hasUpvoted
+        ? votes.filter((id) => id !== currentProfile.id)
+        : [...votes, currentProfile.id];
+      return { ...item, upvotes: newUpvotes };
+    });
+    setLiteratureItems(updated);
+    saveState('literature', updated);
+  };
+
+  // AUTOMATION TRIGGER 4.2: evaluate_meeting_consensus
+  const voteMeetingSlot = (meetingId: string, slotId: string, vote: VoteType, comment?: string) => {
+    const meeting = meetings.find((m) => m.id === meetingId);
+    if (!meeting) return;
+
+    const updatedSlots = meeting.slots.map((slot) => {
+      if (slot.id !== slotId) return slot;
+      const votes = slot.votes || {};
+      const newVote = {
+        id: `vote-${Date.now()}`,
+        slot_id: slotId,
+        meeting_id: meetingId,
+        voter_id: currentProfile.id,
+        vote,
+        comment,
+        updated_at: new Date().toISOString(),
+      };
+      return {
+        ...slot,
+        votes: {
+          ...votes,
+          [currentProfile.id]: newVote,
         },
-      ],
-    };
-    setLabFiles((prev) => {
-      const updated = [newLabFile, ...prev];
-      saveState('files', updated);
-      return updated;
+      };
     });
-    logActivity('file', 'új tudományos állományt regisztrált:', newLabFile.name);
-    toast.success('Új fájl hozzáadva a repóhoz!');
-  };
 
-  // Literature Actions
-  const addPaper = (paperData: Omit<Paper, 'id' | 'addedById' | 'addedByName' | 'addedAt' | 'upvotes'>) => {
-    const newPaper: Paper = {
-      ...paperData,
-      id: `paper-${Date.now()}`,
-      addedById: currentUser.id,
-      addedByName: currentUser.name,
-      addedAt: new Date().toISOString(),
-      upvotes: [currentUser.id],
-    };
-    setPapers((prev) => {
-      const updated = [newPaper, ...prev];
-      saveState('papers', updated);
-      return updated;
-    });
-    logActivity('literature', 'új tudományos publikációt adott a repóhoz:', newPaper.title);
-    toast.success('Publikáció sikeresen rögzítve!');
-  };
+    let newStatus = meeting.status;
+    let confirmedSlotId = meeting.confirmed_slot_id;
 
-  const updatePaperReadStatus = (paperId: string, status: PaperReadStatus) => {
-    setPapers((prev) => {
-      const updated = prev.map((p) => (p.id === paperId ? { ...p, readStatus: status } : p));
-      saveState('papers', updated);
-      return updated;
-    });
-    toast.success('Olvasási státusz frissítve');
-  };
+    // Evaluate consensus rules:
+    // 1. Total slots vs blocked slots (slots having at least one downvote)
+    const totalSlots = updatedSlots.length;
+    const blockedSlots = updatedSlots.filter((slot) => {
+      const votesArr = Object.values(slot.votes || {});
+      return votesArr.some((v) => v.vote === 'downvote');
+    }).length;
 
-  const togglePaperUpvote = (paperId: string) => {
-    setPapers((prev) => {
-      const updated = prev.map((p) => {
-        if (p.id !== paperId) return p;
-        const hasUpvoted = p.upvotes.includes(currentUser.id);
-        const upvotes = hasUpvoted ? p.upvotes.filter((id) => id !== currentUser.id) : [...p.upvotes, currentUser.id];
-        return { ...p, upvotes };
+    // CASE 1: ALL slots blocked by downvote -> AUTO-RESCHEDULE TRIGGER
+    if (totalSlots > 0 && blockedSlots === totalSlots) {
+      newStatus = 'reschedule_needed';
+      // Automated notification to all profiles
+      profiles.forEach((p) => {
+        pushNotification(
+          p.id,
+          'Új időpont-javaslat szükséges! 🔄',
+          `A(z) "${meeting.title}" megbeszélés minden javasolt idősávja ütközik valakinek. Kérlek javasoljatok új sávot!`,
+          'urgent',
+          `/scheduler?meeting=${meeting.id}`
+        );
       });
-      saveState('papers', updated);
-      return updated;
-    });
-  };
+      logActivity(
+        'MEETING_RESCHEDULE',
+        meeting.title,
+        'Minden idősáv leszavazva -> Automatikus újütemezés kérve',
+        '/scheduler'
+      );
+      toast.error('Minden javasolt idősáv ütközik! Automatikus újütemezés (Reschedule Needed) bekapcsolva.', {
+        duration: 5000,
+      });
+    } else {
+      // CASE 2: Is there a winning slot with 0 downvotes and >= 3 upvotes?
+      const winningSlot = updatedSlots.find((slot) => {
+        const votesArr = Object.values(slot.votes || {});
+        const hasDownvote = votesArr.some((v) => v.vote === 'downvote');
+        const upvoteCount = votesArr.filter((v) => v.vote === 'upvote').length;
+        return !hasDownvote && upvoteCount >= 3;
+      });
 
-  // Consultations Actions
-  const voteConsultationSlot = (pollId: string, slotId: string, choice: VoteChoice) => {
-    setConsultationPolls((prev) => {
-      const updated = prev.map((poll) => {
-        if (poll.id !== pollId) return poll;
-        const updatedSlots = poll.slots.map((slot) => {
-          if (slot.id !== slotId) return slot;
-          return {
-            ...slot,
-            votes: {
-              ...slot.votes,
-              [currentUser.id]: choice,
-            },
-          };
+      if (winningSlot && newStatus !== 'confirmed') {
+        newStatus = 'confirmed';
+        confirmedSlotId = winningSlot.id;
+        profiles.forEach((p) => {
+          pushNotification(
+            p.id,
+            'Megbeszélés időpontja véglegesítve! ✅',
+            `A(z) "${meeting.title}" időpontja egyhangú szavazással elfogadva.`,
+            'success',
+            `/scheduler?meeting=${meeting.id}`
+          );
         });
-        return { ...poll, slots: updatedSlots };
-      });
-      saveState('polls', updated);
-      return updated;
-    });
-    const choiceLabel = { available: 'Elérhető', if_needed: 'Ha szükséges', unavailable: 'Nem megfelelő' }[choice];
-    toast.success(`Szavazat leadva: ${choiceLabel}`);
+        logActivity('MEETING_CONFIRMED', meeting.title, 'Egyhangú konszenzus alapján véglegesítve', '/scheduler');
+        toast.success('Megbeszélés időpontja egyhangú konszenzussal elfogadva és véglegesítve!');
+      }
+    }
+
+    const updatedMeetings = meetings.map((m) =>
+      m.id === meetingId
+        ? {
+            ...m,
+            slots: updatedSlots,
+            status: newStatus,
+            confirmed_slot_id: confirmedSlotId,
+            updated_at: new Date().toISOString(),
+          }
+        : m
+    );
+
+    setMeetings(updatedMeetings);
+    saveState('meetings', updatedMeetings);
+
+    const voteLabel = { upvote: 'Elfogadva (Upvote)', downvote: 'Ütközik (Downvote)', if_needed: 'Ha szükséges' }[vote];
+    toast.info(`Szavazat rögzítve: ${voteLabel}`);
   };
 
-  const createConsultationPoll = (pollData: Omit<ConsultationPoll, 'id' | 'createdAt' | 'status' | 'createdById' | 'createdByName'>) => {
-    const newPoll: ConsultationPoll = {
-      ...pollData,
-      id: `poll-${Date.now()}`,
-      createdById: currentUser.id,
-      createdByName: currentUser.name,
-      createdAt: new Date().toISOString(),
-      status: 'open',
+  const createMeeting = (meetingData: Omit<Meeting, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'status'>) => {
+    const newMeeting: Meeting = {
+      ...meetingData,
+      id: `meet-${Date.now()}`,
+      created_by: currentProfile.id,
+      status: 'voting',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
-    setConsultationPolls((prev) => {
-      const updated = [newPoll, ...prev];
-      saveState('polls', updated);
-      return updated;
-    });
-    logActivity('consultation', 'új konzultációs időpont-szavazást írt ki:', newPoll.title);
-    toast.success('Időpont-egyeztetés sikeresen kiírva!');
+    const updated = [newMeeting, ...meetings];
+    setMeetings(updated);
+    saveState('meetings', updated);
+    logActivity('MEETING_CREATED', newMeeting.title, 'új időpont-szavazás kiírva a csapatnak', '/scheduler');
+    toast.success('Időpont-egyeztetés kiírva a kutatócsoportnak!');
   };
 
-  const confirmConsultationSlot = (pollId: string, slotId: string, meetingLink = 'https://meet.google.com/red-lab-thesis') => {
-    const poll = consultationPolls.find((p) => p.id === pollId);
-    if (!poll) return;
-    setConsultationPolls((prev) => {
-      const updated = prev.map((p) => {
-        if (p.id !== pollId) return p;
-        return {
-          ...p,
-          status: 'confirmed' as const,
-          confirmedSlotId: slotId,
-          meetingLink,
-        };
-      });
-      saveState('polls', updated);
-      return updated;
-    });
-    logActivity('consultation', 'véglegesítette a konzultációs időpontot:', poll.title);
-    toast.success('Konzultáció sikeresen véglegesítve és rögzítve!');
+  const confirmMeetingSlot = (meetingId: string, slotId: string, meetingLink = 'https://meet.google.com/red-lab-thesis') => {
+    const updated = meetings.map((m) =>
+      m.id === meetingId
+        ? {
+            ...m,
+            status: 'confirmed' as const,
+            confirmed_slot_id: slotId,
+            location_or_link: meetingLink,
+            updated_at: new Date().toISOString(),
+          }
+        : m
+    );
+    setMeetings(updated);
+    saveState('meetings', updated);
+    toast.success('Megbeszélés véglegesítve!');
+  };
+
+  // Notifications
+  const markNotificationRead = (notifId: string) => {
+    const updated = notifications.map((n) => (n.id === notifId ? { ...n, is_read: true } : n));
+    setNotifications(updated);
+    saveState('notifs', updated);
+  };
+
+  const markAllNotificationsRead = () => {
+    const updated = notifications.map((n) => ({ ...n, is_read: true }));
+    setNotifications(updated);
+    saveState('notifs', updated);
+    toast.success('Minden értesítés olvasottnak jelölve');
   };
 
   return (
     <StoreContext.Provider
       value={{
-        currentUser,
-        users,
-        setCurrentUserById,
+        currentProfile,
+        profiles,
+        setCurrentProfileById,
         isSupervisorMode,
         toggleSupervisorMode,
         theme,
@@ -557,25 +778,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updateTask,
         moveTask,
         toggleChecklistItem,
-        addTaskComment,
         deleteTask,
-        thesisChapters,
-        updateChapterContent,
-        submitChapterForReview,
-        supervisorApproveChapter,
+        taskComments,
+        addComment,
+        milestones,
+        updateMilestoneContent,
+        submitMilestoneForReview,
+        supervisorApproveMilestone,
         supervisorRequestRevision,
-        labFiles,
+        repositoryFiles,
         uploadFileVersion,
-        addNewFile,
-        papers,
-        addPaper,
-        updatePaperReadStatus,
-        togglePaperUpvote,
-        consultationPolls,
-        voteConsultationSlot,
-        createConsultationPoll,
-        confirmConsultationSlot,
-        activities,
+        researchLogs,
+        addResearchLog,
+        deleteResearchLog,
+        literatureItems,
+        addLiteratureItem,
+        updateLiteratureStatus,
+        toggleLiteratureUpvote,
+        meetings,
+        voteMeetingSlot,
+        createMeeting,
+        confirmMeetingSlot,
+        notifications,
+        markNotificationRead,
+        markAllNotificationsRead,
+        activityLogs,
         logActivity,
       }}
     >

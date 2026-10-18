@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useStore } from '@/lib/store';
+import { formatNumber } from '@/lib/utils';
 import {
   LayoutDashboard,
   KanbanSquare,
@@ -11,10 +12,7 @@ import {
   CalendarCheck2,
   GraduationCap,
   FlaskConical,
-  Activity,
-  Cpu,
-  Layers,
-  Sparkles,
+  BookOpen,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,13 +21,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
-  const { tasks, thesisChapters, isSupervisorMode } = useStore();
+  const { tasks, milestones, researchLogs } = useStore();
 
-  const totalWords = thesisChapters.reduce((acc, ch) => acc + ch.currentWords, 0);
-  const targetWords = thesisChapters.reduce((acc, ch) => acc + ch.targetWords, 0);
-  const progressPercent = Math.min(100, Math.round((totalWords / targetWords) * 100));
+  const totalWords = milestones.reduce((acc, m) => acc + (m.current_words || 0), 0);
+  const targetWords = milestones.reduce((acc, m) => acc + (m.target_words || 0), 0);
+  const progressPercent = targetWords > 0 ? Math.min(100, Math.round((totalWords / targetWords) * 100)) : 0;
 
-  const pendingApprovals = thesisChapters.filter((ch) => ch.status === 'felulvizsgalatra_var').length;
+  const pendingApprovals = milestones.filter((m) => m.status === 'awaiting_approval').length;
   const activeTasksCount = tasks.filter((t) => t.status !== 'done').length;
 
   const navItems = [
@@ -49,10 +47,17 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     {
       id: 'thesis',
       label: 'Szakdolgozat & Fejezetek',
-      sublabel: 'Leadás & Kézirat',
+      sublabel: 'Mérföldkövek & Kézirat',
       icon: BookOpenCheck,
       badge: pendingApprovals > 0 ? pendingApprovals : undefined,
       badgeColor: 'bg-rose-600',
+    },
+    {
+      id: 'labbook',
+      label: 'Kutatási Napló (ELN)',
+      sublabel: 'Kísérleti & Szimulációs Füzet',
+      icon: FlaskConical,
+      badge: researchLogs.length > 0 ? researchLogs.length : undefined,
     },
     {
       id: 'files',
@@ -69,7 +74,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     {
       id: 'consultation',
       label: 'Konzultáció & Szavazás',
-      sublabel: 'Calendly / Doodle poll',
+      sublabel: 'Consensus Scheduler Engine',
       icon: CalendarCheck2,
     },
     {
@@ -168,7 +173,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
             <div className="p-2.5 rounded-lg bg-slate-900/40 border border-[#1E2230] flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-red-500" />
-                <span className="text-xs font-medium text-slate-300">Robin</span>
+                <span className="text-xs font-medium text-slate-300">Robin (R)</span>
               </div>
               <span className="text-[10px] font-mono text-slate-400">Architektúra</span>
             </div>
@@ -176,17 +181,17 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
             <div className="p-2.5 rounded-lg bg-slate-900/40 border border-[#1E2230] flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-xs font-medium text-slate-300">Emma</span>
+                <span className="text-xs font-medium text-slate-300">Emma (E)</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">Biomikrofluidika</span>
+              <span className="text-[10px] font-mono text-slate-400">Wet Lab</span>
             </div>
 
             <div className="p-2.5 rounded-lg bg-slate-900/40 border border-[#1E2230] flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-orange-500" />
-                <span className="text-xs font-medium text-slate-300">Domi</span>
+                <span className="text-xs font-medium text-slate-300">Domi (D)</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">Szimuláció & ML</span>
+              <span className="text-[10px] font-mono text-slate-400">Dry Lab & ML</span>
             </div>
           </div>
         </div>
@@ -195,7 +200,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
       {/* Bottom Thesis Progress Widget */}
       <div className="p-4 border-t border-[#1E2230] bg-[#090A0F]/50">
         <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="font-medium text-slate-300">Szakdolgozat Állása</span>
+          <span className="font-medium text-slate-300">Szakdolgozat Haladás</span>
           <span className="font-mono text-xs font-bold text-rose-400">{progressPercent}%</span>
         </div>
         <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -205,7 +210,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
           />
         </div>
         <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 mt-2">
-          <span>{totalWords.toLocaleString()} / {targetWords.toLocaleString()} szó</span>
+          <span suppressHydrationWarning>{formatNumber(totalWords)} / {formatNumber(targetWords)} szó</span>
           <span className="text-emerald-400 flex items-center">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1" />
             Ütemterv szerint

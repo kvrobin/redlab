@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="hu" className="dark">
+    <html lang="hu" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-[#090A0F] text-slate-100 selection:bg-rose-500/30 selection:text-rose-200`}>
         <StoreProvider>
           {children}

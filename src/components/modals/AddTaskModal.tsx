@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { TaskPriority, WorkstreamId } from '@/types';
+import { TaskPriority, WorkstreamType } from '@/types';
 import { X, Plus, Trash2, KanbanSquare } from 'lucide-react';
 
 interface AddTaskModalProps {
@@ -11,15 +11,16 @@ interface AddTaskModalProps {
 }
 
 export function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
-  const { addTask, users } = useStore();
+  const { addTask, profiles, milestones } = useStore();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [workstream, setWorkstream] = useState<WorkstreamId>('robin');
-  const [assigneeId, setAssigneeId] = useState('user-robin');
-  const [priority, setPriority] = useState<TaskPriority>('magas');
-  const [deadline, setDeadline] = useState('2026-10-30');
-  const [tagInput, setTagInput] = useState('Mikrofluidika, Szimuláció');
+  const [workstream, setWorkstream] = useState<WorkstreamType>('wet_lab');
+  const [assignedTo, setAssignedTo] = useState('user-emma');
+  const [milestoneId, setMilestoneId] = useState('ms-3');
+  const [priority, setPriority] = useState<TaskPriority>('high');
+  const [dueDate, setDueDate] = useState('2026-10-30');
+  const [tagInput, setTagInput] = useState('Mikrofluidika, Validáció');
   const [checklistItems, setChecklistItems] = useState<string[]>([
     'Kísérleti setup előkészítése',
     'Adatgyűjtés és validáció',
@@ -51,17 +52,20 @@ export function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
     const checklist = checklistItems.map((text, i) => ({
       id: `cl-new-${Date.now()}-${i}`,
       text,
-      completed: false,
+      done: false,
     }));
 
     addTask({
       title: title.trim(),
       description: description.trim(),
       workstream,
-      assigneeId,
+      assigned_to: assignedTo,
+      co_assignees: [],
+      milestone_id: milestoneId || undefined,
       status: 'todo',
       priority,
-      deadline,
+      position: 5000.0,
+      due_date: dueDate ? `${dueDate}T18:00:00Z` : undefined,
       tags,
       checklist,
     });
@@ -99,13 +103,13 @@ export function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
 
           <div>
             <label className="text-slate-400 font-mono uppercase block mb-1">
-              Részletes Leírás & Hipotézis
+              Részletes Leírás & Célkitűzés
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Részletezd a laboratóriumi lépéseket, számítási paramétereket..."
+              placeholder="Részletezd a kísérleti vagy számítási teendőket..."
               className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
             />
           </div>
@@ -113,38 +117,39 @@ export function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-slate-400 font-mono uppercase block mb-1">
-                Workstream (Kutató)
+                Kutatási Terület (Workstream)
               </label>
               <select
                 value={workstream}
                 onChange={(e) => {
-                  const ws = e.target.value as WorkstreamId;
+                  const ws = e.target.value as WorkstreamType;
                   setWorkstream(ws);
-                  if (ws === 'robin') setAssigneeId('user-robin');
-                  if (ws === 'emma') setAssigneeId('user-emma');
-                  if (ws === 'domi') setAssigneeId('user-domi');
+                  if (ws === 'wet_lab') setAssignedTo('user-emma');
+                  if (ws === 'dry_lab_code') setAssignedTo('user-domi');
+                  if (ws === 'thesis_writing') setAssignedTo('user-robin');
                 }}
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
               >
-                <option value="robin">Robin (Architektúra & Rendszerintegráció)</option>
-                <option value="emma">Emma (Labor & Biomikrofluidika)</option>
-                <option value="domi">Domi (Szimuláció & Gépi Tanulás)</option>
-                <option value="general">Általános RED Lab feladat</option>
+                <option value="wet_lab">Wet Lab (Laboratórium & Mikrofluidika)</option>
+                <option value="dry_lab_code">Dry Lab (Szimuláció & ML)</option>
+                <option value="cad_hardware">CAD & Hardware Fabrikáció</option>
+                <option value="thesis_writing">Szakdolgozatírás</option>
+                <option value="general">Általános feladat</option>
               </select>
             </div>
 
             <div>
               <label className="text-slate-400 font-mono uppercase block mb-1">
-                Felelős Személy
+                Felelős Csapattag
               </label>
               <select
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
               >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.role === 'supervisor' ? 'Témavezető' : 'Kutató'})
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name} ({p.role === 'supervisor' ? 'Témavezető' : 'Kutató'})
                   </option>
                 ))}
               </select>
@@ -154,6 +159,24 @@ export function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-slate-400 font-mono uppercase block mb-1">
+                Kapcsolódó Mérföldkő (Milestone)
+              </label>
+              <select
+                value={milestoneId}
+                onChange={(e) => setMilestoneId(e.target.value)}
+                className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
+              >
+                <option value="">Nincs mérföldkőhöz rendelve</option>
+                {milestones.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.phase_number}. Fázis: {m.title.substring(0, 30)}...
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-slate-400 font-mono uppercase block mb-1">
                 Prioritás
               </label>
               <select
@@ -161,24 +184,24 @@ export function AddTaskModal({ isOpen, onClose }: AddTaskModalProps) {
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
               >
-                <option value="kritikus">Kritikus (Azonnali blokkoló)</option>
-                <option value="magas">Magas prioritás</option>
-                <option value="kozepes">Közepes prioritás</option>
-                <option value="alacsony">Alacsony prioritás</option>
+                <option value="critical">Kritikus (Azonnali blokkoló)</option>
+                <option value="high">Magas prioritás</option>
+                <option value="medium">Közepes prioritás</option>
+                <option value="low">Alacsony prioritás</option>
               </select>
             </div>
+          </div>
 
-            <div>
-              <label className="text-slate-400 font-mono uppercase block mb-1">
-                Leadási Határidő
-              </label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
-              />
-            </div>
+          <div>
+            <label className="text-slate-400 font-mono uppercase block mb-1">
+              Határidő
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500 font-mono"
+            />
           </div>
 
           <div>

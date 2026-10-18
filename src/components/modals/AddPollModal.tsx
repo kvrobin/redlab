@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { ConsultationSlot } from '@/types';
+import { MeetingSlot } from '@/types';
 import { X, CalendarCheck2, Plus, Trash2 } from 'lucide-react';
 
 interface AddPollModalProps {
@@ -11,18 +11,20 @@ interface AddPollModalProps {
 }
 
 export function AddPollModal({ isOpen, onClose }: AddPollModalProps) {
-  const { createConsultationPoll, currentUser } = useStore();
+  const { createMeeting, currentProfile } = useStore();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [deadline, setDeadline] = useState('2026-10-25T18:00:00');
+  const [locationOrLink, setLocationOrLink] = useState('Google Meet / RED Lab Tárgyaló');
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [requiresSupervisor, setRequiresSupervisor] = useState(true);
   const [agendaInput, setAgendaInput] = useState(
-    'Mérési eredmények összevetése a numerikus szimulációval\nKézirat fejezetek átbeszélése\nTémavezetői észrevételek'
+    '1. Kísérleti eredmények és cseppméret-hisztogramok\n2. OpenFOAM szimuláció validálása a mérési adatokkal\n3. Fejezet jóváhagyások átbeszélése'
   );
   const [slotDates, setSlotDates] = useState<string[]>([
-    '2026-10-27T10:00',
-    '2026-10-27T14:30',
-    '2026-10-28T11:00',
+    '2026-10-27T10:00:00Z',
+    '2026-10-27T14:30:00Z',
+    '2026-10-28T11:00:00Z',
   ]);
   const [newSlotDateTime, setNewSlotDateTime] = useState('');
 
@@ -30,7 +32,7 @@ export function AddPollModal({ isOpen, onClose }: AddPollModalProps) {
 
   const handleAddSlot = () => {
     if (newSlotDateTime) {
-      setSlotDates([...slotDates, newSlotDateTime]);
+      setSlotDates([...slotDates, `${newSlotDateTime}:00Z`]);
       setNewSlotDateTime('');
     }
   };
@@ -48,20 +50,33 @@ export function AddPollModal({ isOpen, onClose }: AddPollModalProps) {
       .map((line) => line.trim())
       .filter(Boolean);
 
-    const slots: ConsultationSlot[] = slotDates.map((dt, idx) => ({
+    const tempMeetingId = `meet-${Date.now()}`;
+    const slots: MeetingSlot[] = slotDates.map((dt, idx) => ({
       id: `slot-new-${Date.now()}-${idx}`,
-      dateTime: dt,
-      durationMinutes: 60,
+      meeting_id: tempMeetingId,
+      start_time: dt,
+      end_time: dt, // calculated with duration
+      proposed_by: currentProfile.id,
+      created_at: new Date().toISOString(),
       votes: {
-        [currentUser.id]: 'available',
+        [currentProfile.id]: {
+          id: `v-new-${Date.now()}-${idx}`,
+          slot_id: `slot-new-${Date.now()}-${idx}`,
+          meeting_id: tempMeetingId,
+          voter_id: currentProfile.id,
+          vote: 'upvote',
+          updated_at: new Date().toISOString(),
+        },
       },
     }));
 
-    createConsultationPoll({
+    createMeeting({
       title: title.trim(),
       description: description.trim(),
-      deadline,
-      agenda,
+      agenda_items: agenda,
+      duration_minutes: durationMinutes,
+      location_or_link: locationOrLink.trim() || 'Google Meet',
+      requires_supervisor: requiresSupervisor,
       slots,
     });
 
@@ -109,16 +124,31 @@ export function AddPollModal({ isOpen, onClose }: AddPollModalProps) {
             />
           </div>
 
-          <div>
-            <label className="text-slate-400 font-mono uppercase block mb-1">
-              Szavazási Határidő
-            </label>
-            <input
-              type="datetime-local"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 font-mono focus:outline-none focus:border-rose-500"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-slate-400 font-mono uppercase block mb-1">
+                Helyszín vagy Videóhívás Link
+              </label>
+              <input
+                type="text"
+                value={locationOrLink}
+                onChange={(e) => setLocationOrLink(e.target.value)}
+                placeholder="Google Meet / RED Lab"
+                className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div>
+              <label className="text-slate-400 font-mono uppercase block mb-1">
+                Időtartam (perc)
+              </label>
+              <input
+                type="number"
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 font-mono focus:outline-none focus:border-rose-500"
+              />
+            </div>
           </div>
 
           <div>
@@ -136,7 +166,7 @@ export function AddPollModal({ isOpen, onClose }: AddPollModalProps) {
 
           <div>
             <label className="text-slate-400 font-mono uppercase block mb-1">
-              Javasolt Időpontok ({slotDates.length} időpont rögzítve) *
+              Javasolt Időpontok ({slotDates.length} rögzítve) *
             </label>
             <div className="space-y-1.5 mb-2.5">
               {slotDates.map((dt, idx) => (
@@ -144,7 +174,7 @@ export function AddPollModal({ isOpen, onClose }: AddPollModalProps) {
                   key={idx}
                   className="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 border border-[#1E2230]"
                 >
-                  <span className="font-mono text-slate-200">{dt.replace('T', ' ')} (60 perc)</span>
+                  <span className="font-mono text-slate-200">{dt.replace('T', ' ').replace(':00Z', '')}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveSlot(idx)}
@@ -170,7 +200,7 @@ export function AddPollModal({ isOpen, onClose }: AddPollModalProps) {
                 className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 flex items-center space-x-1"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Időpont hozzáadása</span>
+                <span>Hozzáadás</span>
               </button>
             </div>
           </div>

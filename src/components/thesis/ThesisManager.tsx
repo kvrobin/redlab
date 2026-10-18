@@ -2,62 +2,92 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { ThesisChapter, ChapterStatus } from '@/types';
+import { Milestone, MilestoneStatus } from '@/types';
 import {
   BookOpenCheck,
   CheckCircle2,
   Clock,
   Edit3,
-  FileCheck2,
-  FileText,
-  AlertCircle,
   Download,
   Send,
-  Sparkles,
   ShieldCheck,
-  ChevronRight,
-  UserCheck,
+  AlertCircle,
   History,
   X,
+  Sparkles,
 } from 'lucide-react';
-import { formatDateHungarian } from '@/lib/utils';
+import { formatDateHungarian, formatNumber } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export function ThesisManager() {
   const {
-    thesisChapters,
-    updateChapterContent,
-    submitChapterForReview,
-    supervisorApproveChapter,
+    milestones,
+    updateMilestoneContent,
+    submitMilestoneForReview,
+    supervisorApproveMilestone,
     supervisorRequestRevision,
-    currentUser,
+    currentProfile,
     isSupervisorMode,
   } = useStore();
 
-  const [activeChapter, setActiveChapter] = useState<ThesisChapter>(thesisChapters[0]);
-  const [editorContent, setEditorContent] = useState<string>(activeChapter.contentDraft);
+  const [activeMilestone, setActiveMilestone] = useState<Milestone>(milestones[0]);
+  const [editorContent, setEditorContent] = useState<string>(activeMilestone.content_draft || '');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [feedbackInput, setFeedbackInput] = useState('');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [modalActionType, setModalActionType] = useState<'approve' | 'revise'>('approve');
 
-  // Switch selected chapter
-  const handleSelectChapter = (ch: ThesisChapter) => {
-    setActiveChapter(ch);
-    setEditorContent(ch.contentDraft);
+  const handleSelectMilestone = (ms: Milestone) => {
+    setActiveMilestone(ms);
+    setEditorContent(ms.content_draft || '');
   };
 
-  const totalWords = thesisChapters.reduce((acc, ch) => acc + ch.currentWords, 0);
-  const targetWords = thesisChapters.reduce((acc, ch) => acc + ch.targetWords, 0);
-  const progressPercent = Math.min(100, Math.round((totalWords / targetWords) * 100));
+  const totalWords = milestones.reduce((acc, m) => acc + (m.current_words || 0), 0);
+  const targetWords = milestones.reduce((acc, m) => acc + (m.target_words || 0), 0);
+  const progressPercent = targetWords > 0 ? Math.min(100, Math.round((totalWords / targetWords) * 100)) : 0;
 
-  const approvedCount = thesisChapters.filter((c) => c.status === 'jovahagyva').length;
-  const pendingCount = thesisChapters.filter((c) => c.status === 'felulvizsgalatra_var').length;
+  const approvedCount = milestones.filter((m) => m.status === 'approved').length;
+  const pendingCount = milestones.filter((m) => m.status === 'awaiting_approval').length;
 
   const handleExportFullDossier = () => {
     toast.success('Szakdolgozat Kézirat Összefűzve & Letöltve!', {
-      description: `6 fejezet, ${totalWords.toLocaleString()} szó, IEEE formai megfelelőség (REDLab_Thesis_Manuscript.docx).`,
+      description: `6 fejezet, ${formatNumber(totalWords)} szó, IEEE formai megfelelőség (REDLab_Thesis_Manuscript.docx).`,
     });
+  };
+
+  const getStatusBadge = (status: MilestoneStatus) => {
+    switch (status) {
+      case 'approved':
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center">
+            <CheckCircle2 className="w-2.5 h-2.5 mr-1" /> Jóváhagyva
+          </span>
+        );
+      case 'awaiting_approval':
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center animate-pulse">
+            <Clock className="w-2.5 h-2.5 mr-1" /> Bírálatra vár
+          </span>
+        );
+      case 'revision_requested':
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center">
+            <AlertCircle className="w-2.5 h-2.5 mr-1" /> Átdolgozandó
+          </span>
+        );
+      case 'in_progress':
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30">
+            Folyamatban
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+            Közelgő
+          </span>
+        );
+    }
   };
 
   return (
@@ -67,38 +97,36 @@ export function ThesisManager() {
         <div>
           <div className="flex items-center space-x-2">
             <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-rose-950/70 text-rose-300 border border-rose-800/40">
-              KÉZIRAT & FEJEZET MENEDZSMENT
+              SZAKDOLGOZAT & KUTATÁSI MÉRFÖLDKÖVEK
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              IEEE / Kar specifikus sablon v2.4
+              IEEE / Kar specifikus sablon
             </span>
           </div>
           <h2 className="text-xl font-bold text-white mt-1">
             Diplomamunka és Kutatási Szakdolgozat
           </h2>
           <p className="text-xs text-slate-400 mt-0.5 max-w-2xl">
-            A disszertáció 6 fejezete, felelős kutatók, szószám kalkuláció és a témavezető professzorok
+            A disszertáció 6 fázisa, fejezeti szószámok és a témavezető professzorok
             hivatalos digitális szignója (Sign-off).
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleExportFullDossier}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-xs shadow-md shadow-rose-950/40 flex items-center space-x-1.5 transition-all"
-          >
-            <Download className="w-4 h-4" />
-            <span>Kézirat Export (.docx)</span>
-          </button>
-        </div>
+        <button
+          onClick={handleExportFullDossier}
+          className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-xs shadow-md shadow-rose-950/40 flex items-center space-x-1.5 transition-all shrink-0"
+        >
+          <Download className="w-4 h-4" />
+          <span>Kézirat Export (.docx)</span>
+        </button>
       </div>
 
       {/* Progress Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 rounded-xl bg-[#12141D] border border-[#1E2230]">
           <div className="text-xs text-slate-400 uppercase font-medium">Összesített Terjedelem</div>
-          <div className="text-2xl font-bold font-mono text-white mt-1">
-            {totalWords.toLocaleString()} <span className="text-xs text-slate-400">/ {targetWords.toLocaleString()} szó</span>
+          <div className="text-2xl font-bold font-mono text-white mt-1" suppressHydrationWarning>
+            {formatNumber(totalWords)} <span className="text-xs text-slate-400">/ {formatNumber(targetWords)} szó</span>
           </div>
           <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2.5 overflow-hidden">
             <div className="bg-rose-500 h-full rounded-full" style={{ width: `${progressPercent}%` }} />
@@ -109,7 +137,7 @@ export function ThesisManager() {
         <div className="p-4 rounded-xl bg-[#12141D] border border-[#1E2230]">
           <div className="text-xs text-slate-400 uppercase font-medium">Témavezetői Jóváhagyás</div>
           <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-            {approvedCount} <span className="text-xs text-slate-400">/ 6 fejezet</span>
+            {approvedCount} <span className="text-xs text-slate-400">/ 6 fázis</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-3 flex items-center">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mr-1.5" />
@@ -131,23 +159,22 @@ export function ThesisManager() {
 
       {/* Chapters Master-Detail Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Chapter Selector List (5 cols) */}
+        {/* Left: Selector List (5 cols) */}
         <div className="lg:col-span-5 space-y-3">
           <div className="flex items-center justify-between px-1">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Fejezetek Jegyzéke
+              Mérföldkövek & Fejezetek
             </h4>
-            <span className="text-xs font-mono text-slate-500">6 fejezet</span>
+            <span className="text-xs font-mono text-slate-500">{milestones.length} mérföldkő</span>
           </div>
 
           <div className="space-y-2.5">
-            {thesisChapters.map((ch) => {
-              const isSelected = activeChapter.id === ch.id;
-              const chPercent = Math.min(100, Math.round((ch.currentWords / ch.targetWords) * 100));
+            {milestones.map((ms) => {
+              const isSelected = activeMilestone.id === ms.id;
               return (
                 <div
-                  key={ch.id}
-                  onClick={() => handleSelectChapter(ch)}
+                  key={ms.id}
+                  onClick={() => handleSelectMilestone(ms)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all ${
                     isSelected
                       ? 'bg-[#181B26] border-rose-500/60 shadow-lg shadow-rose-950/30 ring-1 ring-rose-500/30'
@@ -156,36 +183,22 @@ export function ThesisManager() {
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs font-mono font-bold text-rose-400">
-                      {ch.chapterNumber}. Fejezet
+                      {ms.phase_number}. Fázis
                     </span>
-                    {ch.status === 'jovahagyva' && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center">
-                        <CheckCircle2 className="w-2.5 h-2.5 mr-1" /> Jóváhagyva
-                      </span>
-                    )}
-                    {ch.status === 'felulvizsgalatra_var' && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center animate-pulse">
-                        <Clock className="w-2.5 h-2.5 mr-1" /> Felülvizsgálat
-                      </span>
-                    )}
-                    {ch.status === 'tervezet' && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
-                        Piszkozat
-                      </span>
-                    )}
+                    {getStatusBadge(ms.status)}
                   </div>
 
                   <h5 className="text-xs font-bold text-slate-200 line-clamp-1">
-                    {ch.title}
+                    {ms.title}
                   </h5>
                   <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
-                    {ch.subtitle}
+                    {ms.description}
                   </p>
 
                   <div className="mt-3 pt-2.5 border-t border-[#1E2230] flex items-center justify-between text-[11px] font-mono text-slate-400">
-                    <span>Felelős: {ch.leadResearcherName}</span>
-                    <span>
-                      {ch.currentWords} / {ch.targetWords} szó ({chPercent}%)
+                    <span>Haladás: {ms.progress_percent}%</span>
+                    <span suppressHydrationWarning>
+                      {formatNumber(ms.current_words || 0)} / {formatNumber(ms.target_words || 0)} szó
                     </span>
                   </div>
                 </div>
@@ -194,78 +207,50 @@ export function ThesisManager() {
           </div>
         </div>
 
-        {/* Right: Active Chapter Detailed Dossier (7 cols) */}
+        {/* Right: Active Dossier (7 cols) */}
         <div className="lg:col-span-7">
           <div className="rounded-2xl bg-[#12141D] border border-[#1E2230] p-6 shadow-sm space-y-5">
-            {/* Header info */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-[#1E2230]">
               <div>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-mono font-bold text-rose-400">
-                    {activeChapter.chapterNumber}. FEJEZET DOSSZIÉ
+                    {activeMilestone.phase_number}. FÁZIS RÉSZLETEK
                   </span>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                    Verzió: {activeChapter.version}
+                    Határidő: {activeMilestone.due_date}
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-white mt-1">
-                  {activeChapter.title}
+                  {activeMilestone.title}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {activeChapter.subtitle}
+                  {activeMilestone.description}
                 </p>
               </div>
 
-              {/* Status Badge */}
               <div>
-                {activeChapter.status === 'jovahagyva' ? (
+                {activeMilestone.status === 'approved' ? (
                   <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-right">
                     <div className="text-xs font-semibold text-emerald-300 flex items-center justify-end">
                       <ShieldCheck className="w-4 h-4 mr-1 text-emerald-400" />
                       Hivatalosan Jóváhagyva
                     </div>
-                    <div className="text-[10px] font-mono text-slate-400 mt-0.5">
-                      {activeChapter.supervisorApprovedBy}
+                    <div className="text-[10px] font-mono text-slate-400 mt-0.5" suppressHydrationWarning>
+                      {formatDateHungarian(activeMilestone.approved_at || activeMilestone.updated_at)}
                     </div>
                   </div>
-                ) : activeChapter.status === 'felulvizsgalatra_var' ? (
+                ) : activeMilestone.status === 'awaiting_approval' ? (
                   <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/40 text-right">
                     <div className="text-xs font-semibold text-amber-300 flex items-center justify-end">
                       <Clock className="w-4 h-4 mr-1 text-amber-400 animate-spin" />
                       Felülvizsgálatra beküldve
                     </div>
-                    <div className="text-[10px] font-mono text-slate-400 mt-0.5">
-                      Várakozás témavezetői döntésre
-                    </div>
                   </div>
                 ) : (
                   <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-right">
-                    <div className="text-xs font-medium text-slate-400">Piszkozat állapot</div>
-                    <div className="text-[10px] font-mono text-slate-500 mt-0.5">
-                      Kutatói kidolgozás alatt
-                    </div>
+                    <div className="text-xs font-medium text-slate-400">Kidolgozás alatt</div>
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Researcher Info & Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-slate-900/60 border border-[#1E2230] text-xs">
-              <div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase">Felelős Kutató</span>
-                <p className="font-semibold text-slate-200 mt-0.5">{activeChapter.leadResearcherName}</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase">Jelenlegi Terjedelem</span>
-                <p className="font-semibold text-slate-200 mt-0.5">{activeChapter.currentWords.toLocaleString()} szó</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase">Cél Terjedelem</span>
-                <p className="font-semibold text-slate-200 mt-0.5">{activeChapter.targetWords.toLocaleString()} szó</p>
-              </div>
-              <div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase">Utolsó Módosítás</span>
-                <p className="font-semibold text-slate-200 mt-0.5">{formatDateHungarian(activeChapter.lastModified)}</p>
               </div>
             </div>
 
@@ -299,7 +284,7 @@ export function ThesisManager() {
                     </span>
                     <button
                       onClick={() => {
-                        updateChapterContent(activeChapter.id, editorContent);
+                        updateMilestoneContent(activeMilestone.id, editorContent);
                         setIsEditorOpen(false);
                       }}
                       className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium"
@@ -310,18 +295,17 @@ export function ThesisManager() {
                 </div>
               ) : (
                 <div className="p-4 rounded-xl bg-slate-900/50 border border-[#1E2230] text-xs text-slate-300 leading-relaxed max-h-48 overflow-y-auto font-sans">
-                  {activeChapter.contentDraft || 'Ehhez a fejezethez még nem került rögzítésre piszkozat.'}
+                  {activeMilestone.content_draft || 'Ehhez a fázishoz még nincs beillesztve szöveges kivonat.'}
                 </div>
               )}
             </div>
 
-            {/* Action Buttons for Researchers & Supervisors */}
+            {/* Action Buttons */}
             <div className="pt-4 border-t border-[#1E2230] flex flex-wrap items-center justify-between gap-3">
-              {/* Researcher actions */}
               <div className="flex items-center space-x-2">
-                {activeChapter.status !== 'felulvizsgalatra_var' && activeChapter.status !== 'jovahagyva' && (
+                {activeMilestone.status !== 'awaiting_approval' && activeMilestone.status !== 'approved' && (
                   <button
-                    onClick={() => submitChapterForReview(activeChapter.id)}
+                    onClick={() => submitMilestoneForReview(activeMilestone.id)}
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-medium flex items-center space-x-1.5 shadow-md shadow-rose-950/40"
                   >
                     <Send className="w-3.5 h-3.5" />
@@ -330,7 +314,6 @@ export function ThesisManager() {
                 )}
               </div>
 
-              {/* Supervisor actions */}
               {isSupervisorMode && (
                 <div className="flex items-center space-x-2.5">
                   <button
@@ -350,45 +333,29 @@ export function ThesisManager() {
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center space-x-1.5 shadow-md shadow-emerald-950/40"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Hivatalos Jóváhagyás (Sign-Off)</span>
+                    <span>Hivatalos Sign-Off</span>
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Feedback History */}
-            <div className="pt-4 border-t border-[#1E2230]">
-              <h4 className="text-xs font-mono uppercase text-slate-400 tracking-wider mb-2.5 flex items-center">
-                <History className="w-3.5 h-3.5 mr-1.5 text-purple-400" />
-                Témavezetői Vélemények és Visszajelzési Előzmények
-              </h4>
-
-              <div className="space-y-2.5">
-                {activeChapter.feedbackHistory.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">Még nincs rögzített hivatalos bírálat.</p>
-                ) : (
-                  activeChapter.feedbackHistory.map((fb) => (
-                    <div
-                      key={fb.id}
-                      className="p-3.5 rounded-xl bg-slate-900/60 border border-[#1E2230] text-xs space-y-1"
-                    >
-                      <div className="flex items-center justify-between text-slate-400 text-[11px]">
-                        <span className="font-semibold text-purple-300">
-                          {fb.supervisorName} (Témavezető)
-                        </span>
-                        <span className="font-mono text-[10px]">{formatDateHungarian(fb.createdAt)}</span>
-                      </div>
-                      <p className="text-slate-300">{fb.comment}</p>
-                    </div>
-                  ))
-                )}
+            {/* Supervisor Feedback */}
+            {activeMilestone.supervisor_feedback && (
+              <div className="pt-3 border-t border-[#1E2230]">
+                <h4 className="text-xs font-mono uppercase text-purple-400 tracking-wider mb-2 flex items-center">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-purple-400" />
+                  Hivatalos Témavezetői Visszajelzés
+                </h4>
+                <div className="p-3.5 rounded-xl bg-purple-950/30 border border-purple-800/40 text-xs text-slate-200">
+                  {activeMilestone.supervisor_feedback}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Supervisor Feedback / Approval Modal */}
+      {/* Supervisor Modal */}
       {showFeedbackModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-lg rounded-2xl bg-[#12141D] border border-[#1E2230] shadow-2xl p-6 space-y-4">
@@ -397,7 +364,7 @@ export function ThesisManager() {
                 {modalActionType === 'approve' ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 mr-2" />
-                    Fejezet Hivatalos Jóváhagyása (Sign-Off)
+                    Mérföldkő Hivatalos Jóváhagyása (Sign-Off)
                   </>
                 ) : (
                   <>
@@ -408,15 +375,11 @@ export function ThesisManager() {
               </h3>
               <button
                 onClick={() => setShowFeedbackModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="p-1 rounded text-slate-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            <p className="text-xs text-slate-300">
-              Fejezet: <span className="font-bold text-white">{activeChapter.title}</span> (Felelős: {activeChapter.leadResearcherName})
-            </p>
 
             <div>
               <label className="text-xs font-mono uppercase text-slate-400 block mb-1">
@@ -426,11 +389,6 @@ export function ThesisManager() {
                 rows={4}
                 value={feedbackInput}
                 onChange={(e) => setFeedbackInput(e.target.value)}
-                placeholder={
-                  modalActionType === 'approve'
-                    ? 'A fejezet szerkezete és az eredmények hitelesek, leadásra alkalmas...'
-                    : 'Kérjük a kísérleti bizonytalanságok és a konvergencia görbék kiegészítését...'
-                }
                 className="w-full p-3 rounded-xl bg-slate-900 border border-[#1E2230] text-xs text-slate-200 focus:outline-none focus:border-rose-500"
               />
             </div>
@@ -445,9 +403,9 @@ export function ThesisManager() {
               <button
                 onClick={() => {
                   if (modalActionType === 'approve') {
-                    supervisorApproveChapter(activeChapter.id, feedbackInput);
+                    supervisorApproveMilestone(activeMilestone.id, feedbackInput);
                   } else {
-                    supervisorRequestRevision(activeChapter.id, feedbackInput);
+                    supervisorRequestRevision(activeMilestone.id, feedbackInput);
                   }
                   setShowFeedbackModal(false);
                   setFeedbackInput('');

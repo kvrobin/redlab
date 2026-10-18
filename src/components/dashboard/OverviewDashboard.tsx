@@ -11,11 +11,8 @@ import {
   Clock,
   ArrowUpRight,
   Plus,
-  Sparkles,
-  FileText,
-  AlertTriangle,
+  FlaskConical,
   GraduationCap,
-  Download,
   Users,
 } from 'lucide-react';
 import { formatDateHungarian } from '@/lib/utils';
@@ -35,24 +32,24 @@ export function OverviewDashboard({
 }: OverviewDashboardProps) {
   const {
     tasks,
-    thesisChapters,
-    labFiles,
-    papers,
-    consultationPolls,
-    activities,
-    currentUser,
+    milestones,
+    repositoryFiles,
+    literatureItems,
+    meetings,
+    activityLogs,
+    currentProfile,
     isSupervisorMode,
-    supervisorApproveChapter,
+    supervisorApproveMilestone,
   } = useStore();
 
-  const totalWords = thesisChapters.reduce((acc, ch) => acc + ch.currentWords, 0);
-  const targetWords = thesisChapters.reduce((acc, ch) => acc + ch.targetWords, 0);
-  const progressPercent = Math.min(100, Math.round((totalWords / targetWords) * 100));
+  const totalWords = milestones.reduce((acc, m) => acc + (m.current_words || 0), 0);
+  const targetWords = milestones.reduce((acc, m) => acc + (m.target_words || 0), 0);
+  const progressPercent = targetWords > 0 ? Math.min(100, Math.round((totalWords / targetWords) * 100)) : 0;
 
-  const pendingChapters = thesisChapters.filter((ch) => ch.status === 'felulvizsgalatra_var');
-  const approvedChapters = thesisChapters.filter((ch) => ch.status === 'jovahagyva');
+  const pendingMilestones = milestones.filter((m) => m.status === 'awaiting_approval');
+  const approvedMilestones = milestones.filter((m) => m.status === 'approved');
   const activeTasks = tasks.filter((t) => t.status !== 'done');
-  const nextConsultation = consultationPolls.find((p) => p.status === 'open' || p.status === 'confirmed');
+  const activeMeeting = meetings.find((m) => m.status === 'voting' || m.status === 'confirmed');
 
   return (
     <div className="space-y-6">
@@ -63,10 +60,10 @@ export function OverviewDashboard({
           <div>
             <div className="flex items-center space-x-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                RED LAB KUTATÓCSOPORT
+                RED LAB SUPABASE CLUSTER
               </span>
               <span className="text-xs text-slate-400 font-mono">
-                {currentUser.name} bejelentkezve ({currentUser.role === 'supervisor' ? 'Témavezető' : 'Kutató'})
+                {currentProfile.full_name} ({currentProfile.short_code}) • {currentProfile.role === 'supervisor' ? 'Témavezető' : 'Kutató'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
@@ -123,7 +120,7 @@ export function OverviewDashboard({
             <div className="bg-rose-500 h-full rounded-full" style={{ width: `${progressPercent}%` }} />
           </div>
           <div className="flex justify-between items-center text-[11px] font-mono text-slate-400 mt-2">
-            <span>{approvedChapters.length}/6 fejezet elfogadva</span>
+            <span>{approvedMilestones.length}/6 fejezet elfogadva</span>
             <span className="text-rose-400 group-hover:translate-x-0.5 transition-transform flex items-center">
               Részletek <ArrowUpRight className="w-3 h-3 ml-0.5" />
             </span>
@@ -140,18 +137,18 @@ export function OverviewDashboard({
             <GraduationCap className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
           </div>
           <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold font-mono text-white">{pendingChapters.length}</span>
+            <span className="text-2xl font-bold font-mono text-white">{pendingMilestones.length}</span>
             <span className="text-xs text-amber-400 font-mono">fejezet vár bírálatra</span>
           </div>
           <div className="mt-3 flex items-center space-x-2">
             <span
               className={`w-2 h-2 rounded-full ${
-                pendingChapters.length > 0 ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
+                pendingMilestones.length > 0 ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
               }`}
             />
             <span className="text-xs text-slate-300 truncate">
-              {pendingChapters.length > 0
-                ? `${pendingChapters[0].title.substring(0, 24)}...`
+              {pendingMilestones.length > 0
+                ? `${pendingMilestones[0].title.substring(0, 24)}...`
                 : 'Minden fejezet felülvizsgálva'}
             </span>
           </div>
@@ -192,29 +189,29 @@ export function OverviewDashboard({
           className="p-5 rounded-xl bg-[#12141D] border border-[#1E2230] hover:border-emerald-500/40 transition-all cursor-pointer group shadow-sm"
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Következő Konzultáció</span>
+            <span className="text-xs font-medium uppercase tracking-wider">Konzultáció & Szavazás</span>
             <CalendarCheck2 className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-sm font-bold text-emerald-300 truncate">
-              {nextConsultation ? nextConsultation.title.substring(0, 22) + '...' : 'Nincs nyitott szavazás'}
+              {activeMeeting ? activeMeeting.title.substring(0, 22) + '...' : 'Nincs nyitott szavazás'}
             </span>
           </div>
           <div className="mt-3 text-xs text-slate-300 flex items-center space-x-1.5">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span className="font-mono text-[11px]">
-              {nextConsultation ? 'Határidő: 2026. 10. 21.' : 'Minden lezárva'}
+              {activeMeeting?.status === 'confirmed' ? 'Véglegesítve' : activeMeeting?.status === 'reschedule_needed' ? 'Újütemezés szükséges' : 'Szavazás folyamatban'}
             </span>
           </div>
           <div className="text-[11px] font-mono text-emerald-400 group-hover:translate-x-0.5 transition-transform flex items-center justify-end mt-2">
-            Időpont-egyeztetés <ArrowUpRight className="w-3 h-3 ml-0.5" />
+            Egyeztetés <ArrowUpRight className="w-3 h-3 ml-0.5" />
           </div>
         </div>
       </div>
 
       {/* Main Content 2-Column Split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Workstreams and Thesis Quick View (2 cols) */}
+        {/* Left Column: Workstreams and Milestones View */}
         <div className="lg:col-span-2 space-y-6">
           {/* Workstream Progress Cards */}
           <div className="rounded-xl bg-[#12141D] border border-[#1E2230] p-5 shadow-sm">
@@ -223,14 +220,14 @@ export function OverviewDashboard({
                 <Users className="w-4 h-4 mr-2 text-rose-500" />
                 RED Lab Workstream Pillanatkép
               </h3>
-              <span className="text-xs font-mono text-slate-400">Robin • Emma • Domi</span>
+              <span className="text-xs font-mono text-slate-400">Robin (R) • Emma (E) • Domi (D)</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
               {/* Robin */}
               <div className="p-4 rounded-xl bg-slate-900/60 border border-[#1E2230] hover:border-red-500/40 transition-colors">
                 <div className="flex items-center space-x-2 mb-2">
-                  <span className="w-3 h-3 rounded-full bg-red-500" />
+                  <span className="w-5 h-5 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center">R</span>
                   <span className="text-xs font-bold text-white">Robin</span>
                   <span className="text-[10px] font-mono text-slate-400 ml-auto">Lead</span>
                 </div>
@@ -239,7 +236,7 @@ export function OverviewDashboard({
                   Rendszerintegráció, LaTeX & IEEE sablon, 1. és 5. fejezet koordinációja.
                 </p>
                 <div className="mt-3 pt-2.5 border-t border-[#1E2230] flex items-center justify-between text-[11px] font-mono text-slate-400">
-                  <span>Feladatok: {tasks.filter((t) => t.assigneeId === 'user-robin').length} db</span>
+                  <span>Feladatok: {tasks.filter((t) => t.assigned_to === 'user-robin').length} db</span>
                   <span className="text-emerald-400">Aktív</span>
                 </div>
               </div>
@@ -247,7 +244,7 @@ export function OverviewDashboard({
               {/* Emma */}
               <div className="p-4 rounded-xl bg-slate-900/60 border border-[#1E2230] hover:border-rose-500/40 transition-colors">
                 <div className="flex items-center space-x-2 mb-2">
-                  <span className="w-3 h-3 rounded-full bg-rose-500" />
+                  <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center">E</span>
                   <span className="text-xs font-bold text-white">Emma</span>
                   <span className="text-[10px] font-mono text-slate-400 ml-auto">Wet-Lab</span>
                 </div>
@@ -256,7 +253,7 @@ export function OverviewDashboard({
                   PDMS öntés, plazmatisztítás, Calcein-AM sejttúlélés és optikai mérések.
                 </p>
                 <div className="mt-3 pt-2.5 border-t border-[#1E2230] flex items-center justify-between text-[11px] font-mono text-slate-400">
-                  <span>Feladatok: {tasks.filter((t) => t.assigneeId === 'user-emma').length} db</span>
+                  <span>Feladatok: {tasks.filter((t) => t.assigned_to === 'user-emma').length} db</span>
                   <span className="text-rose-400">Labor alatt</span>
                 </div>
               </div>
@@ -264,7 +261,7 @@ export function OverviewDashboard({
               {/* Domi */}
               <div className="p-4 rounded-xl bg-slate-900/60 border border-[#1E2230] hover:border-orange-500/40 transition-colors">
                 <div className="flex items-center space-x-2 mb-2">
-                  <span className="w-3 h-3 rounded-full bg-orange-500" />
+                  <span className="w-5 h-5 rounded-full bg-orange-600 text-white font-bold text-[10px] flex items-center justify-center">D</span>
                   <span className="text-xs font-bold text-white">Domi</span>
                   <span className="text-[10px] font-mono text-slate-400 ml-auto">Sim-GPU</span>
                 </div>
@@ -273,22 +270,22 @@ export function OverviewDashboard({
                   OpenFOAM CFD, Navier-Stokes, YOLOv11 nagysebességű cseppszegmentáció.
                 </p>
                 <div className="mt-3 pt-2.5 border-t border-[#1E2230] flex items-center justify-between text-[11px] font-mono text-slate-400">
-                  <span>Feladatok: {tasks.filter((t) => t.assigneeId === 'user-domi').length} db</span>
+                  <span>Feladatok: {tasks.filter((t) => t.assigned_to === 'user-domi').length} db</span>
                   <span className="text-orange-400">Számítás alatt</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Thesis Chapters Review Panel */}
+          {/* Thesis Milestones Review Panel */}
           <div className="rounded-xl bg-[#12141D] border border-[#1E2230] p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-                  Szakdolgozat Fejezetek Státusza
+                  Kutatási Mérföldkövek & Fejezetek
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Tudományos kézirat 6 fejezetének aktuális állapota
+                  Automatizált haladási kalkuláció a kapcsolódó Kanban kártyák alapján
                 </p>
               </div>
               <button
@@ -300,88 +297,89 @@ export function OverviewDashboard({
             </div>
 
             <div className="space-y-3">
-              {thesisChapters.map((chapter) => {
-                const chapterPercent = Math.min(100, Math.round((chapter.currentWords / chapter.targetWords) * 100));
-                return (
-                  <div
-                    key={chapter.id}
-                    className="p-3.5 rounded-xl bg-slate-900/40 border border-[#1E2230] hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs font-mono font-bold text-rose-400">
-                          {chapter.chapterNumber}. Fejezet
-                        </span>
-                        <span className="text-xs font-semibold text-slate-200 truncate">
-                          {chapter.title}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.2 rounded bg-slate-800">
-                          {chapter.version}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-                        Felelős: {chapter.leadResearcherName} • {chapter.currentWords.toLocaleString()} / {chapter.targetWords.toLocaleString()} szó ({chapterPercent}%)
-                      </div>
+              {milestones.map((m) => (
+                <div
+                  key={m.id}
+                  className="p-3.5 rounded-xl bg-slate-900/40 border border-[#1E2230] hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-mono font-bold text-rose-400">
+                        {m.phase_number}. Fázis
+                      </span>
+                      <span className="text-xs font-semibold text-slate-200 truncate">
+                        {m.title}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.2 rounded bg-slate-800">
+                        {m.progress_percent}%
+                      </span>
                     </div>
-
-                    <div className="flex items-center space-x-3 shrink-0">
-                      {chapter.status === 'jovahagyva' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Jóváhagyva
-                        </span>
-                      )}
-                      {chapter.status === 'felulvizsgalatra_var' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Bírálatra vár
-                        </span>
-                      )}
-                      {chapter.status === 'tervezet' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
-                          Piszkozat
-                        </span>
-                      )}
-
-                      {/* Fast supervisor action */}
-                      {isSupervisorMode && chapter.status === 'felulvizsgalatra_var' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            supervisorApproveChapter(chapter.id, 'Gyors témavezetői jóváhagyás az áttekintőből.');
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-200 border border-emerald-500/40 text-xs font-medium transition-colors"
-                        >
-                          Sign-Off
-                        </button>
-                      )}
+                    <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+                      {m.description}
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="flex items-center space-x-3 shrink-0">
+                    {m.status === 'approved' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Jóváhagyva
+                      </span>
+                    )}
+                    {m.status === 'awaiting_approval' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
+                        <Clock className="w-3 h-3 mr-1" />
+                        Bírálatra vár
+                      </span>
+                    )}
+                    {m.status === 'in_progress' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                        Folyamatban
+                      </span>
+                    )}
+                    {m.status === 'upcoming' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                        Közelgő
+                      </span>
+                    )}
+
+                    {isSupervisorMode && m.status === 'awaiting_approval' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          supervisorApproveMilestone(m.id, 'Gyors jóváhagyás a vezérlőpultból.');
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-200 border border-emerald-500/40 text-xs font-medium transition-colors"
+                      >
+                        Sign-Off
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Right Column: Activity Stream & Key Files */}
+        {/* Right Column: Key Repositories & Activity */}
         <div className="space-y-6">
-          {/* Latest Scientific Files */}
+          {/* Latest Files in Repository */}
           <div className="rounded-xl bg-[#12141D] border border-[#1E2230] p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center">
                 <FolderGit2 className="w-4 h-4 mr-2 text-rose-500" />
-                Legfrissebb Fájlok
+                Repozitórium Állományok
               </h3>
               <button
                 onClick={() => setActiveTab('files')}
                 className="text-xs text-rose-400 hover:text-rose-300 font-medium"
               >
-                Mind ({labFiles.length})
+                Mind ({repositoryFiles.length})
               </button>
             </div>
 
             <div className="space-y-2.5">
-              {labFiles.slice(0, 4).map((file) => (
+              {repositoryFiles.filter((f) => f.is_latest).slice(0, 4).map((file) => (
                 <div
                   key={file.id}
                   onClick={() => setActiveTab('files')}
@@ -389,14 +387,14 @@ export function OverviewDashboard({
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-slate-200 truncate max-w-[180px]">
-                      {file.name}
+                      {file.file_name}
                     </span>
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-950/70 text-rose-300 border border-rose-800/40">
-                      {file.currentVersion}
+                      v{file.version_number}
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-400 mt-1 truncate">
-                    {file.versions[0]?.changelog || file.description}
+                    {file.commit_message}
                   </div>
                 </div>
               ))}
@@ -411,20 +409,20 @@ export function OverviewDashboard({
               </h3>
               <span className="text-[10px] font-mono text-emerald-400 flex items-center">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse" />
-                Élő események
+                Supabase Audit
               </span>
             </div>
 
             <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {activities.slice(0, 7).map((act) => (
+              {activityLogs.slice(0, 7).map((act) => (
                 <div key={act.id} className="text-xs border-b border-[#1E2230]/70 pb-2.5 last:border-0">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-                    <span className="font-semibold text-slate-300">{act.userName}</span>
-                    <span className="font-mono text-[10px]">{formatDateHungarian(act.timestamp)}</span>
+                    <span className="font-semibold text-slate-300">{act.actor_name}</span>
+                    <span className="font-mono text-[10px]" suppressHydrationWarning>{formatDateHungarian(act.created_at)}</span>
                   </div>
                   <p className="text-slate-400 text-[11px]">
-                    {act.description}{' '}
-                    <span className="text-slate-200 font-medium">{act.targetTitle}</span>
+                    <span className="font-mono text-[10px] px-1 rounded bg-slate-800 text-slate-300 mr-1">{act.action_type}</span>{' '}
+                    <strong className="text-slate-200">{act.entity_title}</strong>: {act.details}
                   </p>
                 </div>
               ))}

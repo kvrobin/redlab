@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { OverviewDashboard } from '@/components/dashboard/OverviewDashboard';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { ThesisManager } from '@/components/thesis/ThesisManager';
+import { ResearchLogManager } from '@/components/research-logs/ResearchLogManager';
 import { FileManager } from '@/components/files/FileManager';
 import { LiteratureManager } from '@/components/literature/LiteratureManager';
 import { ConsultationManager } from '@/components/consultation/ConsultationManager';
@@ -48,6 +49,8 @@ export default function HomePage() {
           )}
 
           {activeTab === 'thesis' && <ThesisManager />}
+
+          {activeTab === 'labbook' && <ResearchLogManager />}
 
           {activeTab === 'files' && (
             <FileManager openAddFileModal={() => setIsFileModalOpen(true)} />

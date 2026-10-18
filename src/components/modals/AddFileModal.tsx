@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { FileCategory, WorkstreamId } from '@/types';
+import { WorkstreamType } from '@/types';
 import { X, Upload, FolderGit2 } from 'lucide-react';
 
 interface AddFileModalProps {
@@ -11,40 +11,34 @@ interface AddFileModalProps {
 }
 
 export function AddFileModal({ isOpen, onClose }: AddFileModalProps) {
-  const { addNewFile } = useStore();
+  const { uploadFileVersion, milestones } = useStore();
 
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<FileCategory>('code');
-  const [workstream, setWorkstream] = useState<WorkstreamId>('domi');
-  const [description, setDescription] = useState('');
-  const [version, setVersion] = useState('v1.0');
-  const [changelog, setChangelog] = useState('Kezdeti verzió feltöltése a repóba.');
-  const [tagInput, setTagInput] = useState('Python, Simulation');
+  const [fileName, setFileName] = useState('');
+  const [fileGroupKey, setFileGroupKey] = useState('');
+  const [folderCategory, setFolderCategory] = useState<WorkstreamType>('dry_lab_code');
+  const [milestoneId, setMilestoneId] = useState('');
+  const [commitMessage, setCommitMessage] = useState('v1: Kezdeti verzió commitolása a repóba');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!fileName.trim()) return;
 
-    const extension = name.split('.').pop() || 'dat';
-    const tags = tagInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const groupKey =
+      fileGroupKey.trim() ||
+      fileName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-');
 
-    addNewFile(
-      {
-        name: name.trim(),
-        category,
-        workstream,
-        description: description.trim(),
-        extension,
-        currentVersion: version.trim() || 'v1.0',
-        tags,
-      },
-      version.trim() || 'v1.0',
-      changelog.trim() || 'Kezdeti feltöltés.'
+    uploadFileVersion(
+      groupKey,
+      fileName.trim(),
+      folderCategory,
+      commitMessage.trim() || 'v1: Kezdeti feltöltés',
+      12500000,
+      milestoneId || undefined
     );
 
     onClose();
@@ -56,7 +50,7 @@ export function AddFileModal({ isOpen, onClose }: AddFileModalProps) {
         <div className="flex items-center justify-between pb-3 border-b border-[#1E2230]">
           <h3 className="text-base font-bold text-white flex items-center">
             <FolderGit2 className="w-5 h-5 text-rose-500 mr-2" />
-            Új Tudományos Fájl Regisztrálása a Repóba
+            Új Tudományos Állomány Regisztrálása
           </h3>
           <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -71,9 +65,33 @@ export function AddFileModal({ isOpen, onClose }: AddFileModalProps) {
             <input
               type="text"
               required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={fileName}
+              onChange={(e) => {
+                setFileName(e.target.value);
+                if (!fileGroupKey) {
+                  setFileGroupKey(
+                    e.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9]/g, '-')
+                      .replace(/-+/g, '-')
+                  );
+                }
+              }}
               placeholder="pl. microchannel_flow_mesh.stl vagy solver.py"
+              className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500 font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="text-slate-400 font-mono uppercase block mb-1">
+              File Group Key (Azonos fájlok verzióinak összekapcsolására) *
+            </label>
+            <input
+              type="text"
+              required
+              value={fileGroupKey}
+              onChange={(e) => setFileGroupKey(e.target.value)}
+              placeholder="pl. chip-cad-master vagy szakdoga-kezirat"
               className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500 font-mono"
             />
           </div>
@@ -81,89 +99,50 @@ export function AddFileModal({ isOpen, onClose }: AddFileModalProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-slate-400 font-mono uppercase block mb-1">
-                Fájl Kategória
+                Kategória (Folder Category)
               </label>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as FileCategory)}
+                value={folderCategory}
+                onChange={(e) => setFolderCategory(e.target.value as WorkstreamType)}
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
               >
-                <option value="code">Forráskód / Szkript (.py, .cpp, .m)</option>
-                <option value="cad">CAD / 3D Modell (.stl, .step)</option>
-                <option value="data">Kísérleti Nyersadat (.csv, .xlsx)</option>
-                <option value="thesis">Szakdolgozat Kézirat (.docx, .pdf)</option>
-                <option value="microscopy">Mikroszkópos Képcsomag (.tiff)</option>
-                <option value="presentation">Prezentáció (.pdf, .pptx)</option>
+                <option value="dry_lab_code">Dry Lab (Kód & Szimuláció)</option>
+                <option value="cad_hardware">CAD & Hardware (.stl)</option>
+                <option value="wet_lab">Wet Lab (Mérési Nyersadatok)</option>
+                <option value="thesis_writing">Szakdolgozat Kéziratok</option>
+                <option value="general">Általános állomány</option>
               </select>
             </div>
 
             <div>
               <label className="text-slate-400 font-mono uppercase block mb-1">
-                Kapcsolódó Workstream
+                Kapcsolódó Mérföldkő
               </label>
               <select
-                value={workstream}
-                onChange={(e) => setWorkstream(e.target.value as WorkstreamId)}
+                value={milestoneId}
+                onChange={(e) => setMilestoneId(e.target.value)}
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
               >
-                <option value="robin">Robin (Architektúra & Rendszer)</option>
-                <option value="emma">Emma (Labor & Biomikrofluidika)</option>
-                <option value="domi">Domi (Szimuláció & Gépi Tanulás)</option>
-                <option value="general">Közös RED Lab állomány</option>
+                <option value="">Nincs hozzárendelve</option>
+                {milestones.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.phase_number}. Fázis: {m.title.substring(0, 24)}...
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
           <div>
             <label className="text-slate-400 font-mono uppercase block mb-1">
-              Állomány Leírása & Rendeltetése
-            </label>
-            <textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="A fájl szerepe a kutatási folyamatban és a szakdolgozatban..."
-              className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-slate-400 font-mono uppercase block mb-1">
-                Kezdő Verzió
-              </label>
-              <input
-                type="text"
-                value={version}
-                onChange={(e) => setVersion(e.target.value)}
-                placeholder="v1.0"
-                className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 font-mono focus:outline-none focus:border-rose-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-slate-400 font-mono uppercase block mb-1">
-                Címkék
-              </label>
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                placeholder="pl. OpenFOAM, Mesh, CAD"
-                className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-slate-400 font-mono uppercase block mb-1">
-              Kezdő Commit Üzenet (Changelog)
+              Kezdő Commit Üzenet *
             </label>
             <input
               type="text"
-              value={changelog}
-              onChange={(e) => setChangelog(e.target.value)}
-              placeholder="pl. Kezdeti geometriai paraméterek felvétele..."
+              required
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+              placeholder="pl. v1: Kezdeti geometriai paraméterek felvétele..."
               className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
             />
           </div>
@@ -172,7 +151,7 @@ export function AddFileModal({ isOpen, onClose }: AddFileModalProps) {
           <div className="p-4 border border-dashed border-[#1E2230] rounded-xl text-center text-slate-400 bg-slate-900/40">
             <Upload className="w-5 h-5 mx-auto mb-1 text-slate-500" />
             <p className="text-slate-300 font-medium">Húzd ide a fájlt vagy kattints a tallózáshoz</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">Támogatott: .stl, .step, .csv, .py, .docx, .pdf (max 100 MB)</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Támogatott: .stl, .step, .csv, .py, .docx, .pdf (Supabase Storage)</p>
           </div>
 
           <div className="flex items-center justify-end space-x-2 pt-3 border-t border-[#1E2230]">
@@ -187,7 +166,7 @@ export function AddFileModal({ isOpen, onClose }: AddFileModalProps) {
               type="submit"
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold shadow-md shadow-rose-950/40"
             >
-              Fájl Hozzáadása & Commit
+              Fájl Regisztrálása & Commit
             </button>
           </div>
         </form>

@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { PaperReadStatus } from '@/types';
-import { X, BookOpen, Sparkles } from 'lucide-react';
+import { LiteratureStatus, WorkstreamType } from '@/types';
+import { X, BookOpen, Sparkles, Pin } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AddPaperModalProps {
@@ -12,35 +12,37 @@ interface AddPaperModalProps {
 }
 
 export function AddPaperModal({ isOpen, onClose }: AddPaperModalProps) {
-  const { addPaper } = useStore();
+  const { addLiteratureItem } = useStore();
 
   const [title, setTitle] = useState('');
   const [authors, setAuthors] = useState('');
-  const [journal, setJournal] = useState('Lab on a Chip');
-  const [year, setYear] = useState<number>(2024);
-  const [doi, setDoi] = useState('10.1039/');
-  const [summary, setSummary] = useState('');
-  const [tagInput, setTagInput] = useState('Mikrofluidika, Cseppgenerálás');
-  const [readStatus, setReadStatus] = useState<PaperReadStatus>('olvasas_alatt');
+  const [journal, setJournal] = useState('Nature Reviews Bioengineering');
+  const [publicationYear, setPublicationYear] = useState<number>(2024);
+  const [doi, setDoi] = useState('10.1038/');
+  const [keyFindings, setKeyFindings] = useState('');
+  const [abstract, setAbstract] = useState('');
+  const [tagInput, setTagInput] = useState('Mikrofluidika, Cseppképződés');
+  const [status, setStatus] = useState<LiteratureStatus>('reading');
+  const [workstream, setWorkstream] = useState<WorkstreamType>('wet_lab');
+  const [isPinned, setIsPinned] = useState(false);
   const [bibtex, setBibtex] = useState('');
 
   if (!isOpen) return null;
 
-  // Auto-generate BibTeX draft if title/authors change
   const handleAutoFillBibtex = () => {
     const firstAuthor = authors.split(',')[0].trim().split(' ').pop()?.toLowerCase() || 'author';
     const cleanTitle = title.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 15).toLowerCase().replace(/\s+/g, '_');
-    const citeKey = `${firstAuthor}${year}${cleanTitle}`;
-    
+    const citeKey = `${firstAuthor}${publicationYear}${cleanTitle}`;
+
     const generated = `@article{${citeKey},
   title={${title || 'Untitled Paper'}},
   author={${authors || 'Unknown Authors'}},
   journal={${journal}},
-  year={${year}},
+  year={${publicationYear}},
   doi={${doi}}
 }`;
     setBibtex(generated);
-    toast.info('BibTeX hivatkozási sablon automatikusan legenerálva!');
+    toast.info('BibTeX hivatkozási sablon legenerálva!');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -56,20 +58,23 @@ export function AddPaperModal({ isOpen, onClose }: AddPaperModalProps) {
   title={${title.trim()}},
   author={${authors.trim()}},
   journal={${journal.trim()}},
-  year={${year}},
+  year={${publicationYear}},
   doi={${doi.trim()}}
 }`;
 
-    addPaper({
+    addLiteratureItem({
       title: title.trim(),
       authors: authors.trim() || 'N/A',
-      journal: journal.trim() || 'Folyóirat',
-      year: Number(year) || 2024,
+      journal: journal.trim(),
+      publication_year: Number(publicationYear) || 2024,
       doi: doi.trim(),
-      bibtex: finalBibtex,
+      abstract: abstract.trim(),
+      key_findings: keyFindings.trim(),
+      bibtex_citation: finalBibtex,
       tags,
-      readStatus,
-      summary: summary.trim() || 'Nincs rögzített kivonat.',
+      status,
+      workstream,
+      is_pinned_for_professor: isPinned,
     });
 
     onClose();
@@ -125,7 +130,6 @@ export function AddPaperModal({ isOpen, onClose }: AddPaperModalProps) {
                 type="text"
                 value={journal}
                 onChange={(e) => setJournal(e.target.value)}
-                placeholder="pl. Nature Reviews Bioengineering"
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
               />
             </div>
@@ -136,8 +140,8 @@ export function AddPaperModal({ isOpen, onClose }: AddPaperModalProps) {
               </label>
               <input
                 type="number"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
+                value={publicationYear}
+                onChange={(e) => setPublicationYear(Number(e.target.value))}
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 font-mono focus:outline-none focus:border-rose-500"
               />
             </div>
@@ -159,42 +163,64 @@ export function AddPaperModal({ isOpen, onClose }: AddPaperModalProps) {
 
             <div>
               <label className="text-slate-400 font-mono uppercase block mb-1">
-                Kezdeti Olvasottsági Állapot
+                Státusz
               </label>
               <select
-                value={readStatus}
-                onChange={(e) => setReadStatus(e.target.value as PaperReadStatus)}
+                value={status}
+                onChange={(e) => setStatus(e.target.value as LiteratureStatus)}
                 className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
               >
-                <option value="olvasas_alatt">Olvasás alatt lévő</option>
-                <option value="elolvasva">Elolvasva & kijegyzetelve</option>
-                <option value="feldolgozando">Feldolgozásra váró</option>
+                <option value="to_read">Olvasandó (to_read)</option>
+                <option value="reading">Olvasás alatt (reading)</option>
+                <option value="summarized">Összefoglalva (summarized)</option>
+                <option value="cited_in_thesis">Idézve a szakdolgozatban (cited_in_thesis)</option>
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-slate-400 font-mono uppercase block mb-1">
+                Kapcsolódó Workstream
+              </label>
+              <select
+                value={workstream}
+                onChange={(e) => setWorkstream(e.target.value as WorkstreamType)}
+                className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
+              >
+                <option value="wet_lab">Wet Lab (Laboratórium)</option>
+                <option value="dry_lab_code">Dry Lab (Szimuláció & ML)</option>
+                <option value="cad_hardware">CAD & Hardware</option>
+                <option value="thesis_writing">Szakdolgozat Kézirat</option>
+                <option value="general">Általános</option>
+              </select>
+            </div>
+
+            <div className="flex items-center pt-5">
+              <label className="flex items-center space-x-2 text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isPinned}
+                  onChange={(e) => setIsPinned(e.target.checked)}
+                  className="rounded border-slate-700 text-purple-600 bg-slate-900"
+                />
+                <span className="flex items-center">
+                  <Pin className="w-3.5 h-3.5 mr-1 text-purple-400" />
+                  Kitűzés professzori áttekintésre
+                </span>
+              </label>
             </div>
           </div>
 
           <div>
             <label className="text-slate-400 font-mono uppercase block mb-1">
-              Címkék (vesszővel elválasztva)
-            </label>
-            <input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              placeholder="pl. SingleCell, CFD, PDMS"
-              className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div>
-            <label className="text-slate-400 font-mono uppercase block mb-1">
-              Szakmai Kivonat & Tanulságok a Kutatás Szempontjából
+              Kulcsfontosságú Tanulság (Key Findings) *
             </label>
             <textarea
-              rows={3}
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="Miért fontos ez a szakirodalom a mi szakdolgozatunkhoz..."
+              rows={2}
+              value={keyFindings}
+              onChange={(e) => setKeyFindings(e.target.value)}
+              placeholder="Miért fontos ez a mi kísérleteinkhez és szakdolgozatunkhoz..."
               className="w-full p-2.5 rounded-xl bg-slate-900 border border-[#1E2230] text-slate-200 focus:outline-none focus:border-rose-500"
             />
           </div>
