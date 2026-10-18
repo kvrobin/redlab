@@ -20,9 +20,16 @@ export const metadata: Metadata = {
   title: 'RED Lab — Tudományos Kollaborációs Platform',
   description: 'Zártkörű tudományos kutatócsoporti kollaborációs és szakdolgozat-menedzsment platform Robin, Emma, Domi kutatók és témavezetőik számára.',
   openGraph: {
-    title: 'RED Lab — Tudományos Kollaborációs Platform',
+    title: 'RED Lab (Béta) — Tudományos Kollaborációs Platform',
     description: 'Zártkörű tudományos kutatócsoporti kollaborációs és szakdolgozat-menedzsment platform Robin, Emma, Domi kutatók és témavezetőik számára.',
     siteName: 'RED Lab',
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 };
 

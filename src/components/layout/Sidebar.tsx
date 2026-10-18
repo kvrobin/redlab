@@ -112,8 +112,8 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
               <span className="font-extrabold text-base tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-rose-400 to-rose-200">
                 RED LAB
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-800/40">
-                v2.4
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-700/50 shadow-sm shadow-rose-900/40">
+                BÉTA
               </span>
             </div>
             <p className="text-[10px] font-mono text-slate-400 tracking-tight">

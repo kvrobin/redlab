@@ -18,6 +18,8 @@ import {
   VoteType,
   LiteratureStatus,
   MilestoneStatus,
+  MeetingSlot,
+  MeetingStatus,
 } from '@/types';
 import {
   initialProfiles,
@@ -56,6 +58,9 @@ interface StoreContextType {
 
   // Milestones (Thesis chapters & progress)
   milestones: Milestone[];
+  addMilestone: (ms: Omit<Milestone, 'id' | 'created_at' | 'updated_at'>) => void;
+  updateMilestone: (milestoneId: string, updates: Partial<Milestone>) => void;
+  deleteMilestone: (milestoneId: string) => void;
   updateMilestoneContent: (milestoneId: string, content: string, newWords?: number) => void;
   submitMilestoneForReview: (milestoneId: string) => void;
   supervisorApproveMilestone: (milestoneId: string, feedback: string) => void;
@@ -80,14 +85,20 @@ interface StoreContextType {
   // Literature Items
   literatureItems: LiteratureItem[];
   addLiteratureItem: (item: Omit<LiteratureItem, 'id' | 'created_at' | 'updated_at' | 'added_by' | 'upvotes'>) => void;
+  updateLiteratureItem: (itemId: string, updates: Partial<LiteratureItem>) => void;
   updateLiteratureStatus: (itemId: string, status: LiteratureStatus) => void;
   toggleLiteratureUpvote: (itemId: string) => void;
+  toggleLiteraturePin: (itemId: string) => void;
+  deleteLiteratureItem: (itemId: string) => void;
 
   // Meetings & Voting Automation Engine
   meetings: Meeting[];
   voteMeetingSlot: (meetingId: string, slotId: string, vote: VoteType, comment?: string) => void;
   createMeeting: (meeting: Omit<Meeting, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'status'>) => void;
   confirmMeetingSlot: (meetingId: string, slotId: string, meetingLink?: string) => void;
+  addMeetingSlot: (meetingId: string, startTime: string) => void;
+  updateMeetingNotes: (meetingId: string, notes: string) => void;
+  deleteMeeting: (meetingId: string) => void;
 
   // Notifications & Activity Feed
   notifications: NotificationItem[];
@@ -392,6 +403,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   // Milestones CRUD & Approvals
+  const addMilestone = (msData: Omit<Milestone, 'id' | 'created_at' | 'updated_at'>) => {
+    const newMs: Milestone = {
+      ...msData,
+      id: `ms-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setMilestones((prev) => {
+      const updated = [...prev, newMs].sort((a, b) => a.phase_number - b.phase_number);
+      saveState('milestones', updated);
+      return updated;
+    });
+    logActivity('MILESTONE_CREATED', newMs.title, `Új mérföldkő létrehozva (Fázis #${newMs.phase_number})`, '/milestones');
+    toast.success('Mérföldkő sikeresen létrehozva!');
+  };
+
+  const updateMilestone = (milestoneId: string, updates: Partial<Milestone>) => {
+    setMilestones((prev) => {
+      const updated = prev.map((m) => {
+        if (m.id !== milestoneId) return m;
+        return {
+          ...m,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        };
+      }).sort((a, b) => a.phase_number - b.phase_number);
+      saveState('milestones', updated);
+      return updated;
+    });
+    logActivity('MILESTONE_UPDATED', updates.title || 'Mérföldkő', 'Mérföldkő frissítve', '/milestones');
+    toast.success('Mérföldkő módosítva!');
+  };
+
+  const deleteMilestone = (milestoneId: string) => {
+    const ms = milestones.find((m) => m.id === milestoneId);
+    setMilestones((prev) => {
+      const updated = prev.filter((m) => m.id !== milestoneId);
+      saveState('milestones', updated);
+      return updated;
+    });
+    if (ms) {
+      logActivity('MILESTONE_DELETED', ms.title, 'Mérföldkő törölve a rendszerből', '/milestones');
+    }
+    toast.info('Mérföldkő törölve');
+  };
+
   const updateMilestoneContent = (milestoneId: string, content: string, newWords?: number) => {
     setMilestones((prev) => {
       const updated = prev.map((m) => {
@@ -613,6 +670,53 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     saveState('literature', updated);
   };
 
+  const updateLiteratureItem = (itemId: string, updates: Partial<LiteratureItem>) => {
+    const updated = literatureItems.map((item) =>
+      item.id === itemId
+        ? {
+            ...item,
+            ...updates,
+            updated_at: new Date().toISOString(),
+          }
+        : item
+    );
+    setLiteratureItems(updated);
+    saveState('literature', updated);
+    toast.success('Publikáció adatai sikeresen frissítve!');
+  };
+
+  const toggleLiteraturePin = (itemId: string) => {
+    const item = literatureItems.find((l) => l.id === itemId);
+    const newPinned = !item?.is_pinned_for_professor;
+    const updated = literatureItems.map((l) =>
+      l.id === itemId
+        ? {
+            ...l,
+            is_pinned_for_professor: newPinned,
+            updated_at: new Date().toISOString(),
+          }
+        : l
+    );
+    setLiteratureItems(updated);
+    saveState('literature', updated);
+    toast.success(
+      newPinned
+        ? 'Publikáció kitűzve a Témavezető Professzor számára 📌'
+        : 'Publikáció kiemelése visszavonva'
+    );
+  };
+
+  const deleteLiteratureItem = (itemId: string) => {
+    const item = literatureItems.find((l) => l.id === itemId);
+    const updated = literatureItems.filter((l) => l.id !== itemId);
+    setLiteratureItems(updated);
+    saveState('literature', updated);
+    if (item) {
+      logActivity('PAPER_DELETED', item.title, 'Szakirodalom törölve a repozitóriumból', '/literature');
+    }
+    toast.info('Publikáció törölve a gyűjteményből.');
+  };
+
   // AUTOMATION TRIGGER 4.2: evaluate_meeting_consensus
   const voteMeetingSlot = (meetingId: string, slotId: string, vote: VoteType, comment?: string) => {
     const meeting = meetings.find((m) => m.id === meetingId);
@@ -734,6 +838,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const confirmMeetingSlot = (meetingId: string, slotId: string, meetingLink = 'https://meet.google.com/red-lab-thesis') => {
+    const meeting = meetings.find((m) => m.id === meetingId);
     const updated = meetings.map((m) =>
       m.id === meetingId
         ? {
@@ -747,7 +852,107 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     );
     setMeetings(updated);
     saveState('meetings', updated);
+    
+    if (meeting) {
+      profiles.forEach((p) => {
+        pushNotification(
+          p.id,
+          'Konzultáció megerősítve! 📅',
+          `A(z) "${meeting.title}" megbeszélés időpontja véglegesítve lett.`,
+          'success',
+          `/scheduler?meeting=${meeting.id}`
+        );
+      });
+      logActivity('MEETING_CONFIRMED', meeting.title, 'Időpont sikeresen véglegesítve', '/scheduler');
+    }
     toast.success('Megbeszélés véglegesítve!');
+  };
+
+  const addMeetingSlot = (meetingId: string, startTime: string) => {
+    const meeting = meetings.find((m) => m.id === meetingId);
+    if (!meeting) return;
+
+    const startDate = new Date(startTime);
+    const endDate = new Date(startDate.getTime() + (meeting.duration_minutes || 45) * 60000);
+
+    const newSlotId = `slot-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newSlot: MeetingSlot = {
+      id: newSlotId,
+      meeting_id: meetingId,
+      start_time: startDate.toISOString(),
+      end_time: endDate.toISOString(),
+      proposed_by: currentProfile.id,
+      created_at: new Date().toISOString(),
+      votes: {
+        [currentProfile.id]: {
+          id: `vote-${Date.now()}`,
+          slot_id: newSlotId,
+          meeting_id: meetingId,
+          voter_id: currentProfile.id,
+          vote: 'upvote',
+          updated_at: new Date().toISOString(),
+        },
+      },
+    };
+
+    const updated = meetings.map((m) => {
+      if (m.id !== meetingId) return m;
+      return {
+        ...m,
+        // When a new slot is proposed for an all-blocked meeting, automatically revert status to 'voting'
+        status: (m.status === 'reschedule_needed' ? 'voting' : m.status) as MeetingStatus,
+        slots: [...m.slots, newSlot],
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    setMeetings(updated);
+    saveState('meetings', updated);
+
+    profiles
+      .filter((p) => p.id !== currentProfile.id)
+      .forEach((p) => {
+        pushNotification(
+          p.id,
+          'Új idősáv javaslat érkezett! 📅',
+          `${currentProfile.full_name} új alternatív időpontot javasolt a(z) "${meeting.title}" megbeszéléshez. Kérlek szavazz!`,
+          'info',
+          `/scheduler?meeting=${meeting.id}`
+        );
+      });
+
+    logActivity('MEETING_SLOT_ADDED', meeting.title, 'Új alternatív idősáv felvéve a szavazáshoz', '/scheduler');
+    toast.success('Új alternatív idősáv hozzáadva! A szavazás újra aktív.');
+  };
+
+  const updateMeetingNotes = (meetingId: string, notes: string) => {
+    const meeting = meetings.find((m) => m.id === meetingId);
+    if (!meeting) return;
+
+    const updated = meetings.map((m) =>
+      m.id === meetingId
+        ? {
+            ...m,
+            meeting_notes: notes,
+            updated_at: new Date().toISOString(),
+          }
+        : m
+    );
+    setMeetings(updated);
+    saveState('meetings', updated);
+    logActivity('MEETING_NOTES_UPDATED', meeting.title, 'Jegyzőkönyv (Meeting Minutes) elmentve', '/scheduler');
+    toast.success('Közös megbeszélés jegyzőkönyv mentve!');
+  };
+
+  const deleteMeeting = (meetingId: string) => {
+    const meeting = meetings.find((m) => m.id === meetingId);
+    const updated = meetings.filter((m) => m.id !== meetingId);
+    setMeetings(updated);
+    saveState('meetings', updated);
+    if (meeting) {
+      logActivity('MEETING_DELETED', meeting.title, 'Megbeszélés törölve', '/scheduler');
+    }
+    toast.info('Megbeszélés törölve.');
   };
 
   // Notifications
@@ -795,6 +1000,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         taskComments,
         addComment,
         milestones,
+        addMilestone,
+        updateMilestone,
+        deleteMilestone,
         updateMilestoneContent,
         submitMilestoneForReview,
         supervisorApproveMilestone,
@@ -806,12 +1014,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         deleteResearchLog,
         literatureItems,
         addLiteratureItem,
+        updateLiteratureItem,
         updateLiteratureStatus,
         toggleLiteratureUpvote,
+        toggleLiteraturePin,
+        deleteLiteratureItem,
         meetings,
         voteMeetingSlot,
         createMeeting,
         confirmMeetingSlot,
+        addMeetingSlot,
+        updateMeetingNotes,
+        deleteMeeting,
         notifications,
         markNotificationRead,
         markAllNotificationsRead,

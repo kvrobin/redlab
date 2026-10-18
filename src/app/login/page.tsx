@@ -158,14 +158,17 @@ export default function LoginPage() {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 via-rose-600 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-950/60 ring-1 ring-white/20">
               <FlaskConical className="w-6 h-6 text-white" />
             </div>
-            <div className="text-left">
-              <span className="text-2xl font-black tracking-tight text-white flex items-center">
-                RED<span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-rose-400">LAB</span>
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className="text-2xl font-black tracking-tight text-white flex items-center">
+                  RED<span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-rose-400">LAB</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-700/50">
+                  BÉTA
+                </span>
+              </div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 block -mt-0.5">
-                Scientific Collab
+                Scientific Collab & Thesis Management
               </span>
-            </div>
           </div>
 
           <h1 className="text-xl font-bold tracking-tight text-white">
