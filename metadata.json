@@ -1,0 +1,7 @@
+{
+  "name": "RED Lab — Tudományos Kollaborációs Platform",
+  "description": "Zártkörű tudományos kutatócsoporti kollaborációs és szakdolgozat-menedzsment platform Robin, Emma, Domi kutatók és témavezetőik számára.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
