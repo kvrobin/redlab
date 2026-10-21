@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { RedLabLogo } from '@/components/brand/RedLabLogo';
+import { CommandPalette } from '@/components/command/CommandPalette';
 import {
   GraduationCap,
   ChevronDown,
@@ -19,6 +21,11 @@ import {
   LogOut,
   Radio,
   Eye,
+  Settings,
+  Search,
+  Timer,
+  Sparkles,
+  Menu,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -26,9 +33,10 @@ import { toast } from 'sonner';
 interface TopHeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  onToggleMobileMenu?: () => void;
 }
 
-export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
+export function TopHeader({ activeTab, setActiveTab, onToggleMobileMenu }: TopHeaderProps) {
   const router = useRouter();
   const {
     currentProfile,
@@ -43,10 +51,14 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
     markNotificationRead,
     markAllNotificationsRead,
     addNotification,
+    realtimeStatus,
+    updateCurrentProfile,
+    signOut,
   } = useStore();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [onlineMembers, setOnlineMembers] = useState<Record<string, boolean>>({
     'user-robin': true,
     'user-emma': true,
@@ -132,15 +144,10 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
 
   const handleLogout = async () => {
     try {
-      if (isSupabaseConfigured) {
-        const supabase = createClient();
-        await supabase.auth.signOut();
-      }
-      // Clear demo auth cookie
-      document.cookie = 'redlab_demo_auth=; path=/; max-age=0';
-      toast.success('Sikeres kijelentkezés.');
-      router.push('/login');
+      await signOut();
     } catch {
+      document.cookie = 'redlab_demo_auth=; path=/; max-age=0';
+      document.cookie = 'redlab_demo_profile_id=; path=/; max-age=0';
       router.push('/login');
     }
   };
@@ -161,21 +168,34 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
   return (
     <header className="sticky top-0 z-40 w-full h-16 border-b border-[#1E2230] bg-[#090A0F]/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between select-none">
       {/* Left: Active Module Breadcrumb & Status */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+        {onToggleMobileMenu && (
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            className="lg:hidden p-2 rounded-xl bg-[#12141D] border border-[#1E2230] text-slate-300 hover:text-white touch-target flex items-center justify-center transition-colors -ml-1 mr-0.5"
+            aria-label="Navigáció megnyitása"
+          >
+            <Menu className="w-5 h-5 text-slate-300" />
+          </button>
+        )}
+        <RedLabLogo variant="icon" size="sm" className="shrink-0" />
         <div className="flex items-center space-x-2">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+          <span className="hidden sm:inline text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
             RED LAB
           </span>
-          <span className="text-slate-600">/</span>
-          <span className="text-xs sm:text-sm font-bold text-white capitalize">
+          <span className="hidden sm:inline text-slate-600">/</span>
+          <span className="text-xs sm:text-sm font-bold text-white capitalize truncate max-w-[130px] sm:max-w-none">
             {activeTab === 'dashboard' && 'Központ & Áttekintés'}
-            {activeTab === 'thesis' && 'Haladási Terv & Kézirat'}
+            {activeTab === 'thesis' && 'Thesis & TDK Studio'}
+            {activeTab === 'milestones' && 'Haladási Terv & Mérföldkövek'}
             {activeTab === 'kanban' && 'Kanban Kutatási Tábla'}
             {activeTab === 'consultation' && 'Időpont-egyeztető & Konzultáció'}
             {activeTab === 'files' && 'Fájltár & Git Verziók'}
             {activeTab === 'literature' && 'Szakirodalom & DOI Tár'}
             {activeTab === 'labbook' && 'Kutatási & Laboratóriumi Napló'}
             {activeTab === 'supervisor' && 'Témavezetői Döntéshozói Központ'}
+            {activeTab === 'settings' && 'Rendszerbeállítások'}
           </span>
         </div>
 
@@ -187,8 +207,62 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
         )}
       </div>
 
+      {/* Center: Omnisearch Trigger Bar [Ctrl+K] */}
+      <div className="hidden md:flex items-center flex-1 max-w-sm lg:max-w-md mx-3">
+        <button
+          onClick={() => setIsCommandPaletteOpen(true)}
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-[#12141D] hover:bg-[#181B26] border border-[#1E2230] hover:border-rose-500/50 text-xs text-slate-400 hover:text-slate-200 transition-all shadow-inner group"
+        >
+          <div className="flex items-center space-x-2 truncate">
+            <Search className="w-3.5 h-3.5 text-rose-500 group-hover:scale-110 transition-transform shrink-0" />
+            <span className="truncate">Keresés funkciókra, fájlokra...</span>
+          </div>
+          <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-slate-900 border border-slate-700/80 rounded text-slate-400 group-hover:text-rose-300 shrink-0">
+            Ctrl+K
+          </kbd>
+        </button>
+      </div>
+
       {/* Right Controls */}
-      <div className="flex items-center space-x-2.5 sm:space-x-3">
+      <div className="flex items-center space-x-2 sm:space-x-2.5">
+        {/* Mobile Search Button */}
+        <button
+          onClick={() => setIsCommandPaletteOpen(true)}
+          className="md:hidden p-2 rounded-xl bg-[#12141D] border border-[#1E2230] text-slate-300 hover:text-white"
+          title="Keresés (Ctrl+K)"
+        >
+          <Search className="w-4 h-4 text-rose-500" />
+        </button>
+
+        {/* Quick Lab Timer Button */}
+        <button
+          onClick={() => setActiveTab('labbook')}
+          className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-[#12141D] border border-[#1E2230] hover:border-rose-500/40 text-xs text-slate-300 hover:text-white transition-all shadow-sm"
+          title="Live Lab Timer indítása a Naplóban"
+        >
+          <Timer className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+          <span className="hidden xl:inline text-[11px] font-mono">Stopper</span>
+        </button>
+        {/* Realtime Status Indicator */}
+        <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-[#12141D] border border-[#1E2230] text-[10px] font-mono">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              realtimeStatus === 'connected'
+                ? 'bg-emerald-400 animate-pulse'
+                : realtimeStatus === 'connecting'
+                ? 'bg-amber-400 animate-spin'
+                : 'bg-slate-500'
+            }`}
+          />
+          <span className="text-slate-300">
+            {realtimeStatus === 'connected'
+              ? 'Realtime Szinkron'
+              : realtimeStatus === 'connecting'
+              ? 'Szinkronizálás...'
+              : 'Helyi Mód'}
+          </span>
+        </div>
+
         {/* Supabase Presence Team Indicator (R, E, D, P) */}
         <div className="hidden lg:flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-[#12141D] border border-[#1E2230]">
           <span className="text-[10px] font-mono text-slate-400 mr-1.5 flex items-center">
@@ -361,6 +435,86 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
                 </p>
               </div>
 
+              {/* 1-Click Live Profile & Role Customization */}
+              <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 my-1 space-y-2 text-xs">
+                {/* 1. Live Role Switcher */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold">
+                    Szerepkör:
+                  </span>
+                  <button
+                    onClick={() => {
+                      const newRole = currentProfile.role === 'supervisor' ? 'researcher' : 'supervisor';
+                      updateCurrentProfile({ role: newRole });
+                      toast.success(`Szerepkör módosítva: ${newRole === 'supervisor' ? 'Témavezető' : 'Kutató'}`);
+                    }}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border transition-all ${
+                      currentProfile.role === 'supervisor'
+                        ? 'bg-purple-950/80 text-purple-300 border-purple-700 hover:bg-purple-900'
+                        : 'bg-rose-950/80 text-rose-300 border-rose-700 hover:bg-rose-900'
+                    }`}
+                  >
+                    {currentProfile.role === 'supervisor' ? '🎓 Témavezető' : '🔬 Kutató'}
+                  </button>
+                </div>
+
+                {/* 2. Live Workstream Switcher */}
+                <div>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold block mb-1">
+                    Fő Terület (Workstream):
+                  </span>
+                  <div className="grid grid-cols-3 gap-1 text-[10px]">
+                    {[
+                      { id: 'wet_lab', label: 'Wet Lab' },
+                      { id: 'dry_lab_code', label: 'Kód/Dry' },
+                      { id: 'cad_hardware', label: 'CAD/HW' },
+                      { id: 'thesis_writing', label: 'Tézis' },
+                      { id: 'administration', label: 'Admin' },
+                      { id: 'general', label: 'Általános' },
+                    ].map((ws) => (
+                      <button
+                        key={ws.id}
+                        onClick={() => {
+                          updateCurrentProfile({ primary_workstream: ws.id as any });
+                          toast.success(`Fő terület átállítva: ${ws.label}`);
+                        }}
+                        className={`py-0.5 px-1 rounded text-center truncate border transition-all ${
+                          currentProfile.primary_workstream === ws.id
+                            ? 'bg-rose-600 text-white border-rose-500 font-bold'
+                            : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                        }`}
+                      >
+                        {ws.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Live Badge Color Switcher */}
+                <div>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold block mb-1">
+                    Jelvény Szín:
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {['#EF4444', '#F43F5E', '#10B981', '#0EA5E9', '#8B5CF6', '#F59E0B', '#64748B'].map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => {
+                          updateCurrentProfile({ badge_color: color });
+                          toast.success('Jelvény szín módosítva!');
+                        }}
+                        style={{ backgroundColor: color }}
+                        className={`w-4 h-4 rounded-full transition-transform ${
+                          currentProfile.badge_color === color
+                            ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110'
+                            : 'opacity-70 hover:opacity-100 hover:scale-105'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="py-2 space-y-1">
                 <div className="px-2 pt-1 text-[10px] font-bold text-rose-400 uppercase tracking-wider">
                   RED Lab Csapattagok:
@@ -395,7 +549,17 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
                 ))}
               </div>
 
-              <div className="pt-2 border-t border-[#1E2230]">
+              <div className="pt-2 border-t border-[#1E2230] space-y-1">
+                <button
+                  onClick={() => {
+                    setActiveTab('settings');
+                    setIsUserMenuOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-2 px-3 py-2 rounded-xl text-left text-xs text-slate-300 hover:bg-slate-800 transition-colors"
+                >
+                  <Settings className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Beállítások & Webhook</span>
+                </button>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center space-x-2 px-3 py-2 rounded-xl text-left text-xs font-semibold text-rose-400 hover:bg-rose-950/30 transition-colors"
@@ -408,6 +572,19 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
           )}
         </div>
 
+        {/* Settings Button */}
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`p-2 rounded-xl bg-[#12141D] border transition-all ${
+            activeTab === 'settings'
+              ? 'border-rose-600 text-rose-400 bg-rose-950/40'
+              : 'border-[#1E2230] text-slate-400 hover:text-slate-200 hover:border-slate-700'
+          }`}
+          title="Rendszerbeállítások & Webhookok"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+
         {/* Theme Toggle Button */}
         <button
           onClick={toggleTheme}
@@ -417,6 +594,20 @@ export function TopHeader({ activeTab, setActiveTab }: TopHeaderProps) {
           {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-400" />}
         </button>
       </div>
+
+      {/* Global Omnisearch Command Palette Modal */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onOpenLiveTimer={() => {
+          setActiveTab('labbook');
+          router.push('/logs?timer=start');
+        }}
+        onOpenAiBriefing={() => {
+          setActiveTab('dashboard');
+          router.push('/dashboard?ai=briefing');
+        }}
+      />
     </header>
   );
 }

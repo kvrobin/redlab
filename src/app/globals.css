@@ -27,30 +27,67 @@
   }
 }
 
-/* Custom subtle Crimson scrollbars */
+/* Custom Crimson-Obsidian High-Precision Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(9, 10, 15, 0.9);
+  background: #090A0F;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(225, 29, 72, 0.25);
+  background: rgba(225, 29, 72, 0.3);
   border-radius: 9999px;
+  border: 1px solid rgba(225, 29, 72, 0.15);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(225, 29, 72, 0.55);
+  background: rgba(225, 29, 72, 0.6);
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.5);
 }
 
-/* Crimson scientific glass surfaces */
+/* Crimson Scientific Glass Utility Classes */
+.red-glass-card {
+  background-color: rgba(18, 20, 29, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  border-radius: 1rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.red-glass-card:hover {
+  border-color: rgba(244, 63, 94, 0.4);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55), 0 0 20px rgba(225, 29, 72, 0.15);
+}
+
+.red-glow-button {
+  background-image: linear-gradient(to right, #DC2626, #E11D48, #B91C1C);
+  color: #FFFFFF;
+  border: 1px solid rgba(251, 113, 133, 0.25);
+  box-shadow: 0 0 20px rgba(225, 29, 72, 0.35);
+  border-radius: 0.75rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.red-glow-button:hover {
+  background-image: linear-gradient(to right, #EF4444, #F43F5E, #DC2626);
+  box-shadow: 0 0 28px rgba(225, 29, 72, 0.65);
+  transform: translateY(-1px);
+}
+
+.red-glow-button:active {
+  transform: translateY(0);
+}
+
+/* Glass Panels */
 .glass-panel {
-  background: rgba(18, 20, 29, 0.75);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(18, 20, 29, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid #1E2230;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -60,37 +97,55 @@
 }
 
 .glass-panel-elevated {
-  background: rgba(24, 27, 38, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(225, 29, 72, 0.2);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px -5px rgba(225, 29, 72, 0.2);
+  background: rgba(24, 27, 38, 0.88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(225, 29, 72, 0.25);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6), 0 0 24px -5px rgba(225, 29, 72, 0.25);
 }
 
-/* Red Lab Crimson Scientific glow */
-.crimson-glow {
-  box-shadow: 0 0 25px -4px rgba(225, 29, 72, 0.35);
+/* Scientific 40px Microgrid */
+.bg-scientific-grid {
+  background-image:
+    linear-gradient(to right, rgba(30, 34, 48, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 34, 48, 0.22) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
-.crimson-glow-lg {
-  box-shadow: 0 0 40px -5px rgba(225, 29, 72, 0.5);
+/* Ambient Radial Glow */
+.bg-ambient-crimson-glow {
+  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(225, 29, 72, 0.18), transparent);
 }
 
-.crimson-glow-sm {
-  box-shadow: 0 0 15px -3px rgba(225, 29, 72, 0.25);
+/* Mobile Responsiveness & Touch Target Utilities (320px - 4K) */
+@media (max-width: 640px) {
+  /* Prevent iOS Safari automatic auto-zoom bug on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
-.emerald-glow-sm {
-  box-shadow: 0 0 15px -3px rgba(16, 185, 129, 0.3);
+/* Safe area padding utilities for mobile notches & home indicator */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
 }
 
-/* Scientific dot grid background */
-.bg-grid-pattern {
-  background-image: radial-gradient(rgba(225, 29, 72, 0.12) 1px, transparent 1px);
-  background-size: 24px 24px;
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
-.bg-dot-pattern {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 20px 20px;
+/* Min touch target for tactile laboratory mobile accessibility */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
+
+/* Hide scrollbars for slick mobile horizontal carousels while allowing smooth scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

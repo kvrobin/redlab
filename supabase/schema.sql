@@ -387,3 +387,52 @@ CREATE POLICY "Members can manage literature" ON public.literature_items FOR ALL
 CREATE POLICY "Members can upload files" ON public.repository_files FOR ALL TO authenticated USING (auth.uid() = uploaded_by);
 CREATE POLICY "Members can manage research logs" ON public.research_logs FOR ALL TO authenticated USING (auth.uid() = author_id);
 CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE TO authenticated USING (auth.uid() = recipient_id);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+
+-- 4.4 AUTOMATIKUS PROFIL LÉTREHOZÁSA AUTH.USERS REGISZTRÁCIÓJAKOR
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (
+        id,
+        email,
+        full_name,
+        short_code,
+        role,
+        primary_workstream,
+        avatar_url,
+        badge_color,
+        notify_email,
+        notify_webhook
+    )
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+        COALESCE(NEW.raw_user_meta_data->>'short_code', UPPER(SUBSTRING(COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email), 1, 1))),
+        COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'researcher'::public.user_role),
+        COALESCE((NEW.raw_user_meta_data->>'primary_workstream')::public.workstream_type, 'general'::public.workstream_type),
+        NEW.raw_user_meta_data->>'avatar_url',
+        COALESCE(NEW.raw_user_meta_data->>'badge_color', '#E11D48'),
+        COALESCE((NEW.raw_user_meta_data->>'notify_email')::boolean, true),
+        COALESCE((NEW.raw_user_meta_data->>'notify_webhook')::boolean, true)
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        short_code = EXCLUDED.short_code,
+        role = EXCLUDED.role,
+        primary_workstream = EXCLUDED.primary_workstream,
+        badge_color = EXCLUDED.badge_color,
+        updated_at = NOW();
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger csatolása auth.users-re
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+

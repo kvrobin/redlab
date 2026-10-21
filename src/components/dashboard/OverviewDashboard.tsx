@@ -14,7 +14,9 @@ import {
   FlaskConical,
   GraduationCap,
   Users,
+  Sparkles,
 } from 'lucide-react';
+import { AiCopilotModal } from '@/components/ai/AiCopilotModal';
 import { formatDateHungarian } from '@/lib/utils';
 
 interface OverviewDashboardProps {
@@ -30,6 +32,7 @@ export function OverviewDashboard({
   openAddFileModal,
   openAddPaperModal,
 }: OverviewDashboardProps) {
+  const [isAiBriefingOpen, setIsAiBriefingOpen] = React.useState(false);
   const {
     tasks,
     milestones,
@@ -96,6 +99,14 @@ export function OverviewDashboard({
             >
               <BookOpenCheck className="w-4 h-4 text-amber-400" />
               <span>DOI Cikk</span>
+            </button>
+            <button
+              onClick={() => setIsAiBriefingOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-semibold text-xs shadow-md shadow-rose-950/40 flex items-center space-x-1.5 transition-all"
+              title="Gemini AI heti szintézis és professzori executive összefoglaló"
+            >
+              <Sparkles className="w-4 h-4 text-rose-200" />
+              <span>✨ Heti AI Riport</span>
             </button>
           </div>
         </div>
@@ -430,6 +441,13 @@ export function OverviewDashboard({
           </div>
         </div>
       </div>
+
+      {/* AI Weekly Briefing Modal */}
+      <AiCopilotModal
+        isOpen={isAiBriefingOpen}
+        onClose={() => setIsAiBriefingOpen(false)}
+        mode="weekly_briefing"
+      />
     </div>
   );
 }

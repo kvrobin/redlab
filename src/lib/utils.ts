@@ -72,3 +72,19 @@ export function formatNumber(val: number | undefined | null): string {
   if (val == null || isNaN(val)) return '0';
   return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
+
+/**
+ * Triggers a real browser download for simulated repository files
+ */
+export function triggerFileDownload(fileName: string, content = 'RED Lab Scientific Data File') {
+  if (typeof window === 'undefined') return;
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

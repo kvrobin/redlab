@@ -157,7 +157,7 @@ export function DashboardClient({
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-950/80 text-rose-300 border border-rose-800/60 font-semibold tracking-wider uppercase">
-                RED LAB BÉTA VEZÉRLŐPULT
+                RED LAB VEZÉRLŐPULT
               </span>
               <span className="text-slate-500">•</span>
               <span className="text-[11px] font-mono text-slate-400">

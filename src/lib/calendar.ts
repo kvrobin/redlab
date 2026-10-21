@@ -28,7 +28,7 @@ export function generateGoogleCalendarUrl(meeting: Meeting, slot: MeetingSlot): 
       meeting.agenda_items || []
     )
       .map((item, idx) => `${idx + 1}. ${item}`)
-      .join('\n')}\n\nRED Lab Béta Platform`
+      .join('\n')}\n\nRED Lab Platform`
   );
   const location = encodeURIComponent(meeting.location_or_link || 'Google Meet / RED Lab');
 

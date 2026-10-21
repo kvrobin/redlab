@@ -5,6 +5,9 @@ import { useStore } from '@/lib/store';
 import { LiteratureItem, LiteratureStatus, WorkstreamType } from '@/types';
 import { AddLiteratureModal } from '@/components/literature/AddLiteratureModal';
 import { SplitPdfReaderModal } from '@/components/literature/SplitPdfReaderModal';
+import { BibtexExportToolbar } from '@/components/literature/BibtexExportToolbar';
+import { AiCopilotModal } from '@/components/ai/AiCopilotModal';
+import { RedLabLogo } from '@/components/brand/RedLabLogo';
 import {
   Library,
   BookOpen,
@@ -48,6 +51,7 @@ export function LiteratureManager({ openAddPaperModal }: LiteratureManagerProps)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [readingItem, setReadingItem] = useState<LiteratureItem | null>(null);
   const [isReaderOpen, setIsReaderOpen] = useState(false);
+  const [aiSummaryPaper, setAiSummaryPaper] = useState<LiteratureItem | null>(null);
 
   const handleOpenAdd = () => {
     if (openAddPaperModal) openAddPaperModal();
@@ -223,6 +227,9 @@ export function LiteratureManager({ openAddPaperModal }: LiteratureManagerProps)
           <p className="text-[10px] text-emerald-400/80 mt-0.5">{readingCount} olvasás alatt</p>
         </div>
       </div>
+
+      {/* 2.5 BibTeX Export Toolbar */}
+      <BibtexExportToolbar />
 
       {/* 3. Filter & Search Bar */}
       <div className="p-4 rounded-2xl bg-[#12141D] border border-[#1E2230] space-y-3">
@@ -451,7 +458,17 @@ export function LiteratureManager({ openAddPaperModal }: LiteratureManagerProps)
                     </button>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center space-x-2">
+                    {/* AI Summarize Paper */}
+                    <button
+                      onClick={() => setAiSummaryPaper(item)}
+                      className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-red-600/30 to-rose-600/30 hover:from-red-600/50 hover:to-rose-600/50 text-rose-200 border border-rose-500/40 text-xs font-semibold flex items-center space-x-1 transition-all shadow-sm"
+                      title="AI Kulcsmegállapítások szintézise (Gemini 2.5 Flash)"
+                    >
+                      <Sparkles className="w-3 h-3 text-rose-400" />
+                      <span>AI Szintézis</span>
+                    </button>
+
                     {/* Read split view button */}
                     <button
                       onClick={() => handleOpenReader(item)}
@@ -488,7 +505,7 @@ export function LiteratureManager({ openAddPaperModal }: LiteratureManagerProps)
           })
         ) : (
           <div className="col-span-full text-center py-12 rounded-2xl bg-[#12141D] border border-dashed border-[#1E2230] p-8 space-y-3">
-            <BookOpen className="w-10 h-10 text-slate-600 mx-auto" />
+            <RedLabLogo variant="icon" size="md" className="mx-auto opacity-75" />
             <h4 className="text-sm font-bold text-white">Nincs találat a szűrésnek megfelelően</h4>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
               Próbálj más szűrőt vagy adj hozzá egy új tudományos cikket a DOI varázslóval!
@@ -513,6 +530,13 @@ export function LiteratureManager({ openAddPaperModal }: LiteratureManagerProps)
         item={readingItem}
         isOpen={isReaderOpen}
         onClose={() => setIsReaderOpen(false)}
+      />
+
+      <AiCopilotModal
+        isOpen={Boolean(aiSummaryPaper)}
+        onClose={() => setAiSummaryPaper(null)}
+        mode="summarize_paper"
+        initialData={{ paper: aiSummaryPaper || undefined }}
       />
     </div>
   );

@@ -11,7 +11,9 @@ import {
   Download,
   AlertCircle,
   X,
+  Sparkles,
 } from 'lucide-react';
+import { AiCopilotModal } from '@/components/ai/AiCopilotModal';
 import { formatNumber } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -27,6 +29,7 @@ export function SupervisorView() {
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [actionType, setActionType] = useState<'approve' | 'revise'>('approve');
+  const [isBriefingOpen, setIsBriefingOpen] = useState(false);
 
   const pendingMilestones = milestones.filter((m) => m.status === 'awaiting_approval');
   const approvedMilestones = milestones.filter((m) => m.status === 'approved');
@@ -87,7 +90,16 @@ export function SupervisorView() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              onClick={() => setIsBriefingOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold text-xs shadow-lg shadow-rose-950/50 flex items-center space-x-2 transition-all"
+              title="Gemini AI heti szintézis készítése a professzor számára"
+            >
+              <Sparkles className="w-4 h-4 text-rose-200" />
+              <span>✨ Heti AI Státuszriport</span>
+            </button>
+
             <button
               onClick={handleDownloadDraft}
               className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-lg shadow-purple-950/50 flex items-center space-x-2 transition-all"
@@ -324,6 +336,13 @@ export function SupervisorView() {
           </div>
         </div>
       )}
+
+      {/* Weekly Executive Briefing AI Modal */}
+      <AiCopilotModal
+        isOpen={isBriefingOpen}
+        onClose={() => setIsBriefingOpen(false)}
+        mode="weekly_briefing"
+      />
     </div>
   );
 }

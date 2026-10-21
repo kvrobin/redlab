@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { DEFAULT_TEAM_MEMBERS, TeamMemberSeed } from '@/types/database';
-import { useStore } from '@/lib/store';
+import { DEFAULT_TEAM_MEMBERS } from '@/types/database';
+import { RedLabLogo } from '@/components/brand/RedLabLogo';
 import {
   Sparkles,
   Lock,
@@ -17,21 +18,84 @@ import {
   KeyRound,
   GraduationCap,
   Users,
+  Cpu,
+  Microscope,
+  Binary,
+  UserCheck,
+  Palette,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function LoginPage() {
+interface DemoRolePreset {
+  id: 'student' | 'supervisor';
+  title: string;
+  badgeLabel: string;
+  subtitle: string;
+  role: 'researcher' | 'supervisor';
+  workstream: 'cad_hardware' | 'wet_lab' | 'dry_lab_code' | 'general' | 'thesis_writing' | 'administration';
+  email: string;
+  profileId: string;
+  shortCode: string;
+  badgeColor: string;
+  icon: React.ReactNode;
+}
+
+const DEMO_ROLE_PRESETS: DemoRolePreset[] = [
+  {
+    id: 'student',
+    title: '1. Hallgatói nézet',
+    badgeLabel: 'Hallgató / Kutató',
+    subtitle: 'Kutatói munkatér, kísérletek, mérési adatok, Kanban és kéziratírás',
+    role: 'researcher',
+    workstream: 'wet_lab',
+    email: 'hallgato@redlab.hu',
+    profileId: 'user-robin',
+    shortCode: 'H',
+    badgeColor: '#E11D48',
+    icon: <FlaskConical className="w-5 h-5 text-rose-400" />,
+  },
+  {
+    id: 'supervisor',
+    title: '2. Témavezetői nézet',
+    badgeLabel: 'Témavezető',
+    subtitle: 'Fejezet-bírálatok, konzultációs időpontok és hivatalos jóváhagyások (Sign-Off)',
+    role: 'supervisor',
+    workstream: 'general',
+    email: 'temavezeto@redlab.hu',
+    profileId: 'user-prof-kovacs',
+    shortCode: 'T',
+    badgeColor: '#8B5CF6',
+    icon: <GraduationCap className="w-5 h-5 text-purple-400" />,
+  },
+];
+
+function LoginContent() {
   const router = useRouter();
-  const { setCurrentProfileById } = useStore();
+  const searchParams = useSearchParams();
+  const redirectedFrom = searchParams.get('redirectedFrom') || '/dashboard';
   const supabase = createClient();
 
-  const [activeTab, setActiveTab] = useState<'password' | 'magic_link'>('password');
+  // Mode: 'login' | 'register'
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [loginMethod, setLoginMethod] = useState<'password' | 'magic_link'>('password');
+
+  // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [shortCode, setShortCode] = useState('R');
+  const [role, setRole] = useState<'researcher' | 'supervisor'>('researcher');
+  const [workstream, setWorkstream] = useState<
+    'cad_hardware' | 'wet_lab' | 'dry_lab_code' | 'general' | 'thesis_writing' | 'administration'
+  >('general');
+  const [badgeColor, setBadgeColor] = useState('#E11D48');
   const [isLoading, setIsLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
-  // Email + Password sign-in
+  // Sign In with Password
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -45,7 +109,7 @@ export default function LoginPage() {
 
     try {
       if (isSupabaseConfigured) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -54,23 +118,27 @@ export default function LoginPage() {
           throw error;
         }
 
-        // Set demo auth cookie as well for middleware consistency
-        document.cookie = 'redlab_demo_auth=true; path=/; max-age=604800; SameSite=Lax';
-        toast.success('Sikeres bejelentkezés!', {
-          description: 'Üdvözöljük a RED Lab tudományos felületén.',
-        });
-        router.push('/');
-        router.refresh();
-      } else {
-        // Fallback demo login: find matching team member or default to Robin
-        const member = DEFAULT_TEAM_MEMBERS.find((m) => m.email.toLowerCase() === email.toLowerCase()) || DEFAULT_TEAM_MEMBERS[0];
-        setCurrentProfileById(member.id);
         document.cookie = 'redlab_demo_auth=true; path=/; max-age=604800; SameSite=Lax';
 
-        toast.success(`Üdvözöljük, ${member.fullName}!`, {
+        toast.success('Sikeres bejelentkezés!', {
+          description: `Üdvözlünk a RED Lab rendszerben! (${data.user.email})`,
+        });
+
+        router.push(redirectedFrom);
+        router.refresh();
+      } else {
+        // Supabase offline/local fallback
+        const matchingMember =
+          DEFAULT_TEAM_MEMBERS.find((m) => m.email.toLowerCase() === email.toLowerCase()) ||
+          DEFAULT_TEAM_MEMBERS[0];
+        document.cookie = `redlab_demo_profile_id=${matchingMember.id}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = 'redlab_demo_auth=true; path=/; max-age=604800; SameSite=Lax';
+
+        toast.success(`Üdvözlünk, ${matchingMember.fullName}!`, {
           description: 'Belépve tesztkörnyezetben (Supabase offline mód).',
         });
-        router.push('/');
+
+        router.push(redirectedFrom);
         router.refresh();
       }
     } catch (err: unknown) {
@@ -83,12 +151,12 @@ export default function LoginPage() {
     }
   };
 
-  // Magic Link sign-in for professors
+  // Sign In with Magic Link (for supervisors)
   const handleMagicLinkLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       toast.error('Hiányzó email cím!', {
-        description: 'Kérlek add meg a professzori email címedet a bejelentkezési linkhez.',
+        description: 'Kérlek add meg az email címedet a bejelentkezési linkhez.',
       });
       return;
     }
@@ -100,283 +168,614 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+              redirectedFrom
+            )}`,
           },
         });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         setMagicLinkSent(true);
-        toast.success('Magic Link elküldve!', {
-          description: `Ellenőrizd a(z) ${email} postafiókot az egykattintásos belépéshez.`,
+        toast.success('Belépési link elküldve!', {
+          description: `Egy biztonságos belépési linket küldtünk a következő címre: ${email}`,
         });
       } else {
-        // Demo simulation
-        setMagicLinkSent(true);
+        // Demo magic link
         document.cookie = 'redlab_demo_auth=true; path=/; max-age=604800; SameSite=Lax';
-        const member = DEFAULT_TEAM_MEMBERS.find((m) => m.email.toLowerCase() === email.toLowerCase()) || DEFAULT_TEAM_MEMBERS[3];
-        setCurrentProfileById(member.id);
-
-        toast.success('Magic Link teszt üzemmódban szimulálva!', {
-          description: `Kattints a folytatás gombra a belépéshez: ${member.fullName}.`,
+        toast.success('Belépés szimulálva!', {
+          description: `Bejelentkezve ezzel a címmel: ${email}`,
         });
+        router.push(redirectedFrom);
+        router.refresh();
       }
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : 'Nem sikerült elküldeni a Magic Linket.';
-      toast.error('Hiba történt!', {
-        description: errorMsg,
-      });
+      const errorMsg = err instanceof Error ? err.message : 'Nem sikerült a link kiküldése.';
+      toast.error('Hiba történt!', { description: errorMsg });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Quick 1-click team member sign-in
-  const handleQuickLogin = (member: TeamMemberSeed) => {
-    setCurrentProfileById(member.id);
+  // Sign Up / Registration
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!fullName.trim()) {
+      toast.error('Hiányzó név!', { description: 'Kérlek add meg a teljes nevedet.' });
+      return;
+    }
+
+    if (!email.trim() || !email.includes('@')) {
+      toast.error('Érvénytelen email!', { description: 'Kérlek érvényes email címet adj meg.' });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('Rövid jelszó!', { description: 'A jelszónak legalább 6 karakter hosszúnak kell lennie.' });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('A jelszavak nem egyeznek!', { description: 'Kérlek ellenőrizd az új jelszót.' });
+      return;
+    }
+
+    if (!acceptTerms) {
+      toast.error('Adatvédelmi nyilatkozat elfogadása kötelező!', {
+        description: 'Kérlek fogadd el a RED Lab Adatkezelési Tájékoztatóját a regisztrációhoz.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      if (isSupabaseConfigured) {
+        const computedShortCode =
+          shortCode.trim() ||
+          fullName
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+              short_code: computedShortCode,
+              role,
+              primary_workstream: workstream,
+              badge_color: badgeColor,
+              notify_email: true,
+              notify_webhook: true,
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+              redirectedFrom
+            )}`,
+          },
+        });
+
+        if (error) throw error;
+
+        document.cookie = 'redlab_demo_auth=true; path=/; max-age=604800; SameSite=Lax';
+
+        if (data.session) {
+          toast.success('Sikeres regisztráció és belépés!', {
+            description: `Üdvözlünk a RED Lab kutatócsoportjában, ${fullName}!`,
+          });
+          router.push(redirectedFrom);
+          router.refresh();
+        } else {
+          toast.success('Regisztrációs fiók elkészült!', {
+            description: 'Kérlek ellenőrizd a beérkező fiókodat a visszaigazoló linkért, vagy lépj be közvetlenül.',
+          });
+          setMode('login');
+        }
+      } else {
+        // Demo offline registration
+        document.cookie = 'redlab_demo_auth=true; path=/; max-age=604800; SameSite=Lax';
+        toast.success('Profil regisztrálva!', {
+          description: `Üdvözlünk, ${fullName}! (Supabase offline demó mód).`,
+        });
+        router.push(redirectedFrom);
+        router.refresh();
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'A regisztráció nem sikerült.';
+      toast.error('Regisztrációs hiba!', { description: errorMsg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Quick 1-click Demo Login
+  const handleQuickDemoLogin = (preset: DemoRolePreset) => {
+    setEmail(preset.email);
+    setPassword('RedLab2026!');
     document.cookie = 'redlab_demo_auth=true; path=/; max-age=604800; SameSite=Lax';
-    toast.success(`Belépve: ${member.fullName}`, {
-      description: `${member.role === 'supervisor' ? 'Témavezetői' : 'Kutatói'} munkamenet aktiválva.`,
+    document.cookie = `redlab_demo_profile_id=${preset.profileId}; path=/; max-age=604800; SameSite=Lax`;
+
+    toast.success(`Azonnali belépés: ${preset.title}`, {
+      description: preset.subtitle,
     });
-    router.push('/');
+    router.push(redirectedFrom);
     router.refresh();
   };
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-slate-100 flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8 relative overflow-hidden bg-grid-pattern">
-      {/* Background glow orbs */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-red-600/15 via-rose-600/10 to-transparent blur-[120px] pointer-events-none rounded-full" />
-      <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-rose-900/10 blur-[100px] pointer-events-none rounded-full" />
+    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans selection:bg-rose-500/30 selection:text-rose-200">
+      {/* Background ambient light effects */}
+      <div className="absolute top-[-10rem] left-1/2 -translate-x-1/2 w-[65rem] h-[35rem] bg-gradient-to-b from-rose-900/20 via-purple-900/10 to-transparent blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-5rem] -right-20 w-[40rem] h-[30rem] bg-rose-950/15 blur-3xl rounded-full pointer-events-none" />
+
+      {/* Top Bar with System Status */}
+      <header className="relative z-10 w-full max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+        <RedLabLogo variant="full" size="lg" />
+
+        {/* Server Status Pill */}
+        <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-xs shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-slate-300 font-medium">
+            Szerver elérhető
+          </span>
+        </div>
+      </header>
 
       {/* Main Container */}
-      <div className="w-full max-w-md z-10 space-y-6">
-        {/* Header & Logo */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center space-x-3 mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 via-rose-600 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-950/60 ring-1 ring-white/20">
-              <FlaskConical className="w-6 h-6 text-white" />
-            </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl font-black tracking-tight text-white flex items-center">
-                  RED<span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-rose-400">LAB</span>
-                </span>
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-700/50">
-                  BÉTA
-                </span>
-              </div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 block -mt-0.5">
-                Scientific Collab & Thesis Management
-              </span>
-          </div>
-
-          <h1 className="text-xl font-bold tracking-tight text-white">
-            Zártkörű Kutatói & Szakdolgozati Rendszer
-          </h1>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Robin, Emma, Domi kutatók és témavezető professzoraik kollaborációs platformja.
-          </p>
-        </div>
-
-        {/* Login Card */}
-        <div className="rounded-2xl bg-[#12141D] border border-[#1E2230] p-6 shadow-2xl relative">
-          {/* Tab Switcher */}
-          <div className="grid grid-cols-2 p-1 rounded-xl bg-slate-900/80 border border-[#1E2230] mb-6">
+      <main className="relative z-10 w-full max-w-4xl mx-auto px-4 py-6 flex-1 flex flex-col justify-center">
+        <div className="bg-[#0D121F]/90 border border-slate-800/80 shadow-2xl rounded-2xl backdrop-blur-xl overflow-hidden">
+          {/* Top Mode Selector Tabs (Bejelentkezés vs Regisztráció) */}
+          <div className="grid grid-cols-2 border-b border-slate-800 bg-[#090D17]">
             <button
-              type="button"
               onClick={() => {
-                setActiveTab('password');
+                setMode('login');
                 setMagicLinkSent(false);
               }}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
-                activeTab === 'password'
-                  ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-rose-950/40'
+              className={`py-4 text-center font-semibold text-sm transition-all flex items-center justify-center space-x-2 ${
+                mode === 'login'
+                  ? 'text-white border-b-2 border-rose-500 bg-rose-500/5'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Jelszavas Belépés</span>
+              <KeyRound className="w-4 h-4 text-rose-400" />
+              <span>Bejelentkezés (Sign In)</span>
             </button>
 
             <button
-              type="button"
-              onClick={() => {
-                setActiveTab('magic_link');
-                setMagicLinkSent(false);
-              }}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center space-x-1.5 ${
-                activeTab === 'magic_link'
-                  ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-rose-950/40'
+              onClick={() => setMode('register')}
+              className={`py-4 text-center font-semibold text-sm transition-all flex items-center justify-center space-x-2 ${
+                mode === 'register'
+                  ? 'text-white border-b-2 border-rose-500 bg-rose-500/5'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Magic Link (Professzorok)</span>
+              <UserCheck className="w-4 h-4 text-rose-400" />
+              <span>Regisztráció & Szerepkörök (Sign Up)</span>
             </button>
           </div>
 
-          {/* Form 1: Password Login */}
-          {activeTab === 'password' && (
-            <form onSubmit={handlePasswordLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Egyetemi Email Cím
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="robin@redlab.edu vagy prof.kovacs@redlab.edu"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-[#1E2230] text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-rose-500/80 transition-colors"
-                  />
+          <div className="p-6 sm:p-8">
+            {/* 1. BEJELENTKEZÉS NÉZET */}
+            {mode === 'login' && (
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                    Üdvözlünk a RED Lab Munkatérben!
+                  </h1>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Jelentkezz be email címeddel és jelszavaddal, vagy válassz az alábbi 2 gyors demó nézet közül.
+                  </p>
                 </div>
-              </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-slate-300">
-                    Jelszó
-                  </label>
-                  <span className="text-[11px] text-slate-400 hover:text-rose-400 cursor-pointer">
-                    Elfelejtett jelszó?
-                  </span>
+                {/* Sub-tabs: Jelszavas vs Magic Link */}
+                <div className="flex p-1 bg-slate-900 rounded-xl border border-slate-800 text-xs w-full sm:w-auto sm:inline-flex">
+                  <button
+                    onClick={() => setLoginMethod('password')}
+                    className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg font-medium transition-all ${
+                      loginMethod === 'password'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Email + Jelszó
+                  </button>
+                  <button
+                    onClick={() => setLoginMethod('magic_link')}
+                    className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-lg font-medium transition-all ${
+                      loginMethod === 'magic_link'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Magic Link (Témavezetőknek)
+                  </button>
                 </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-[#1E2230] text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-rose-500/80 transition-colors"
-                  />
-                </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-semibold text-sm shadow-lg shadow-rose-950/40 flex items-center justify-center space-x-2 transition-all disabled:opacity-50 mt-2"
-              >
-                <span>{isLoading ? 'Azonosítás...' : 'Biztonságos Belépés'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          )}
+                {loginMethod === 'password' ? (
+                  <form onSubmit={handlePasswordLogin} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Email Cím
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="pl. kutato@redlab.hu vagy saját email"
+                          className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all"
+                        />
+                      </div>
+                    </div>
 
-          {/* Form 2: Magic Link */}
-          {activeTab === 'magic_link' && (
-            <div>
-              {!magicLinkSent ? (
-                <form onSubmit={handleMagicLinkLogin} className="space-y-4">
-                  <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-900/40 text-xs text-rose-300 leading-relaxed">
-                    <span className="font-semibold block mb-0.5">Egyszerű, jelszó nélküli belépés:</span>
-                    A témavezető professzoroknak elegendő megadniuk egyetemi címüket, és a rendszer közvetlen hitelesítő linket küld.
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          Jelszó
+                        </label>
+                      </div>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-semibold text-sm shadow-lg shadow-rose-950/50 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      {isLoading ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span>Belépés a Munkatérbe</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleMagicLinkLogin} className="space-y-4">
+                    {magicLinkSent ? (
+                      <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800/80 text-emerald-200 text-sm space-y-2">
+                        <div className="flex items-center space-x-2 font-semibold">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          <span>Belépési link elküldve!</span>
+                        </div>
+                        <p className="text-xs text-emerald-300/80">
+                          Kattints az emailben érkező megerősítő hivatkozásra a jelszómentes professzori belépéshez.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                            Témavezetői Email
+                          </label>
+                          <div className="relative">
+                            <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="email"
+                              required
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              placeholder="pl. temavezeto@redlab.hu"
+                              className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500 transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white font-semibold text-sm shadow-lg shadow-purple-950/50 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                        >
+                          {isLoading ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4" />
+                              <span>Magic Link Küldése Emailben</span>
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </form>
+                )}
+
+                {/* Quick 1-Click Demo Profiles (2 Options) */}
+                <div className="pt-6 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+                      <Users className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Gyors Demó Belépés (2 opció)</span>
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">1 kattintásos azonnali hozzáférés</span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                      Professzori / Kutatói Email Cím
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {DEMO_ROLE_PRESETS.map((char) => (
+                      <button
+                        key={char.id}
+                        type="button"
+                        onClick={() => handleQuickDemoLogin(char)}
+                        className="group flex items-start space-x-3.5 p-3.5 rounded-xl bg-slate-900/70 hover:bg-slate-850 border border-slate-800 hover:border-rose-500/50 hover:shadow-lg hover:shadow-rose-950/20 transition-all text-left"
+                      >
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-md ring-1 ring-white/10 shrink-0 mt-0.5"
+                          style={{ backgroundColor: char.badgeColor }}
+                        >
+                          {char.icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="text-sm font-bold text-white group-hover:text-rose-400 transition-colors">
+                              {char.title}
+                            </span>
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-medium ${
+                                char.role === 'supervisor'
+                                  ? 'bg-purple-950/80 text-purple-300 border border-purple-800/50'
+                                  : 'bg-rose-950/80 text-rose-300 border border-rose-800/50'
+                              }`}
+                            >
+                              {char.badgeLabel}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 leading-snug">{char.subtitle}</p>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-rose-400 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. REGISZTRÁCIÓS NÉZET */}
+            {mode === 'register' && (
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                    Új Kutatói vagy Témavezetői Fiók
+                  </h1>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Add meg kutatói adataidat a RED Lab munkatérhez való csatlakozáshoz.
+                  </p>
+                </div>
+
+                {/* Registration Form */}
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Full Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Teljes Név
+                      </label>
                       <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="prof.kovacs@redlab.edu"
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-[#1E2230] text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-rose-500/80 transition-colors"
+                        type="text"
+                        required
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="pl. Teljes Név"
+                        className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
                       />
                     </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Email Cím
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="pl. kutato@redlab.hu"
+                        className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                      />
+                    </div>
+
+                    {/* Short Code & Badge Color */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Monogram / Rövid Kód
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={3}
+                        value={shortCode}
+                        onChange={(e) => setShortCode(e.target.value.toUpperCase())}
+                        placeholder="H, T"
+                        className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50 uppercase"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                        <span>Avatar / Jelvény Szín</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{badgeColor}</span>
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="color"
+                          value={badgeColor}
+                          onChange={(e) => setBadgeColor(e.target.value)}
+                          className="w-10 h-10 rounded-xl border border-slate-700 bg-[#141A29] cursor-pointer p-0.5"
+                        />
+                        <div className="flex space-x-1.5 flex-1">
+                          {['#E11D48', '#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'].map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setBadgeColor(color)}
+                              className="w-7 h-7 rounded-lg ring-1 ring-white/20 transition-transform active:scale-90"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Role */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Szerepkör a Laborban
+                      </label>
+                      <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value as 'researcher' | 'supervisor')}
+                        className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                      >
+                        <option value="researcher">Kutató Hallgató (Researcher)</option>
+                        <option value="supervisor">Témavezető / Professzor (Supervisor)</option>
+                      </select>
+                    </div>
+
+                    {/* Workstream */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Elsődleges Munkaterület (Workstream)
+                      </label>
+                      <select
+                        value={workstream}
+                        onChange={(e) => setWorkstream(e.target.value as any)}
+                        className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                      >
+                        <option value="general">Általános Kutatás / Csapatmunka</option>
+                        <option value="cad_hardware">CAD & Mikrofluidikai Hardver</option>
+                        <option value="wet_lab">Wet Lab & Sejttenyésztési Mérések</option>
+                        <option value="dry_lab_code">Dry Lab, Szimuláció & Kód</option>
+                        <option value="thesis_writing">Szakdolgozat & Kézirat Írás</option>
+                        <option value="administration">Adminisztráció & Szervezés</option>
+                      </select>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Jelszó (min. 6 karakter)
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                      />
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                        Jelszó Megerősítése
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-[#141A29] border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* GDPR / Terms Checkbox */}
+                  <div className="flex items-start space-x-2.5 pt-2">
+                    <input
+                      type="checkbox"
+                      id="termsCheckbox"
+                      checked={acceptTerms}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded border-slate-700 bg-[#141A29] text-rose-600 focus:ring-rose-500/50 cursor-pointer accent-rose-600 shrink-0"
+                    />
+                    <label htmlFor="termsCheckbox" className="text-xs text-slate-300 leading-snug cursor-pointer select-none">
+                      Elolvastam és elfogadom a RED Lab{' '}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        className="text-rose-400 hover:text-rose-300 underline font-semibold"
+                      >
+                        Adatkezelési Tájékoztatóját
+                      </Link>
+                      , és hozzájárulok a regisztrációs adataim kezeléséhez a kutatási együttműködés céljából.
+                    </label>
                   </div>
 
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold text-sm shadow-lg shadow-rose-950/40 flex items-center justify-center space-x-2 transition-all disabled:opacity-50 mt-2"
+                    className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-semibold text-sm shadow-lg shadow-rose-950/50 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
-                    <Sparkles className="w-4 h-4" />
-                    <span>{isLoading ? 'Küldés...' : 'Magic Link Kérése'}</span>
+                    {isLoading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Regisztráció & Csatlakozás a RED Lab-hez</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </form>
-              ) : (
-                <div className="text-center py-4 space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 mx-auto flex items-center justify-center">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-sm font-bold text-white">A belépési link elkészült!</h3>
-                  <p className="text-xs text-slate-400">
-                    Kattints az alábbi gombra a munkamenet azonnali indításához:
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      router.push('/');
-                      router.refresh();
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors flex items-center justify-center space-x-2"
-                  >
-                    <span>Belépés a RED Lab Központba</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Quick Persona Switcher for Development & Demonstration */}
-        <div className="rounded-2xl bg-[#12141D]/90 border border-[#1E2230] p-4.5 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-[#1E2230]">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center">
-              <Users className="w-3.5 h-3.5 mr-1.5 text-rose-500" />
-              Gyors Belépés Szerepkörrel (1-Kattintás)
-            </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-              Demo Sandbox
-            </span>
-          </div>
-
-          <p className="text-[11px] text-slate-400">
-            Válassz egy csapattagot a zártkörű felület azonnali kipróbálásához:
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            {DEFAULT_TEAM_MEMBERS.map((member) => (
-              <button
-                key={member.id}
-                type="button"
-                onClick={() => handleQuickLogin(member)}
-                className="flex items-center space-x-2.5 p-2 rounded-xl bg-slate-900/80 border border-[#1E2230] hover:border-slate-700 hover:bg-slate-800/80 transition-all text-left group"
-              >
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm"
-                  style={{ backgroundColor: member.badgeColor }}
-                >
-                  {member.shortCode}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-slate-200 group-hover:text-white truncate">
-                    {member.fullName}
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono truncate">
-                    {member.role === 'supervisor' ? 'Témavezető Prof.' : 'Kutató'}
-                  </div>
-                </div>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
         </div>
+      </main>
 
-        {/* Security badge */}
-        <div className="flex items-center justify-center space-x-2 text-[11px] font-mono text-slate-500">
-          <ShieldCheck className="w-4 h-4 text-emerald-500/70" />
-          <span>RLS & Supabase Auth Védelem • SSL 256-bit Encrypted</span>
+      {/* Footer */}
+      <footer className="relative z-10 w-full max-w-6xl mx-auto px-6 py-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between border-t border-slate-900 gap-2">
+        <div>RED Lab (Research & Engineering Dynamics) © 2026</div>
+        <div className="flex items-center space-x-4 text-[11px]">
+          <Link
+            href="/privacy"
+            className="text-slate-400 hover:text-rose-400 underline font-mono transition-colors"
+          >
+            Adatvédelem & Jogi nyilatkozat (/privacy)
+          </Link>
+          <span className="flex items-center space-x-1 text-slate-400">
+            <Lock className="w-3 h-3 text-slate-500" />
+            <span>End-to-End Hitelesítés & RLS Adatvédelem</span>
+          </span>
         </div>
-      </div>
+      </footer>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-[#07090E] flex items-center justify-center">
+          <div className="flex items-center space-x-2 text-rose-500 font-mono text-sm">
+            <div className="w-4 h-4 border-2 border-rose-500/30 border-t-rose-500 rounded-full animate-spin" />
+            <span>RED Lab Hitelesítés betöltése...</span>
+          </div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </React.Suspense>
   );
 }

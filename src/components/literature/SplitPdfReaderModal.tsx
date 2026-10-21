@@ -36,6 +36,7 @@ export function SplitPdfReaderModal({ item, isOpen, onClose }: SplitPdfReaderMod
   const [status, setStatus] = useState<LiteratureStatus>('reading');
   const [isSaving, setIsSaving] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'document' | 'notes'>('document');
 
   useEffect(() => {
     if (item) {
@@ -163,12 +164,44 @@ export function SplitPdfReaderModal({ item, isOpen, onClose }: SplitPdfReaderMod
           </div>
         </div>
 
+        {/* Mobile View Tab Selector (< lg: 1024px) */}
+        <div className="lg:hidden flex items-center border-b border-[#1E2230] bg-slate-950 px-3 py-1.5 shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileTab('document')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 touch-target transition-all ${
+              mobileTab === 'document'
+                ? 'bg-rose-950 text-rose-200 border border-rose-800 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <FileText className="w-4 h-4 text-rose-400" />
+            <span>📄 Dokumentum Olvasó</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('notes')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 touch-target transition-all ${
+              mobileTab === 'notes'
+                ? 'bg-rose-950 text-rose-200 border border-rose-800 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-rose-400" />
+            <span>📝 Jegyzetek & Adatok</span>
+          </button>
+        </div>
+
         {/* ========================================================================= */}
         {/* SPLIT VIEW BODY: Left = PDF Viewer, Right = Notes & Key Findings */}
         {/* ========================================================================= */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
           {/* LEFT PANE: PDF Embed / Reader (60% width on large screens) */}
-          <div className="flex-1 h-full bg-slate-950 border-b lg:border-b-0 lg:border-r border-[#1E2230] relative flex flex-col min-h-0">
+          <div
+            className={`flex-1 h-full bg-slate-950 border-b lg:border-b-0 lg:border-r border-[#1E2230] relative flex-col min-h-0 ${
+              mobileTab === 'document' ? 'flex' : 'hidden lg:flex'
+            }`}
+          >
             <div className="flex items-center justify-between px-4 py-2 border-b border-[#1E2230] bg-[#161824] text-xs font-mono text-slate-400 shrink-0">
               <span className="flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-rose-400" />
@@ -196,7 +229,11 @@ export function SplitPdfReaderModal({ item, isOpen, onClose }: SplitPdfReaderMod
           </div>
 
           {/* RIGHT PANE: Research Notes & Key Findings (40% width on large screens) */}
-          <div className="w-full lg:w-[440px] xl:w-[480px] h-full flex flex-col bg-[#12141D] p-5 space-y-4 overflow-y-auto shrink-0">
+          <div
+            className={`w-full lg:w-[440px] xl:w-[480px] h-full flex-col bg-[#12141D] p-4 sm:p-5 space-y-4 overflow-y-auto shrink-0 ${
+              mobileTab === 'notes' ? 'flex' : 'hidden lg:flex'
+            }`}
+          >
             {/* Status & Workstream Selector */}
             <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-900 border border-[#1E2230]">
               <div>

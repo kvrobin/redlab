@@ -45,7 +45,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
-  short_code: 'R' | 'E' | 'D' | 'P';
+  short_code: string;
   role: UserRole;
   primary_workstream: WorkstreamType;
   avatar_url?: string | null;
@@ -208,6 +208,28 @@ export interface RepositoryFile {
   created_at: string;
 }
 
+export interface ThesisFigureMapping {
+  figure_number: string;
+  file_id: string;
+  file_group_key: string;
+  pinned_version: number;
+  caption: string;
+  latex_label: string;
+}
+
+export type ThesisChapterStatus = 'draft' | 'in_progress' | 'ready_for_review' | 'approved';
+
+export interface ThesisChapterMetadata {
+  is_thesis_chapter: boolean;
+  chapter_number: number;
+  section_code: string;
+  status: ThesisChapterStatus;
+  assigned_to_code: string;
+  target_word_count: number;
+  linked_literature_ids: string[];
+  figure_mappings: ThesisFigureMapping[];
+}
+
 /**
  * 3.10 RESEARCH LOGS (Kísérleti & Laboratóriumi Napló)
  */
@@ -217,7 +239,7 @@ export interface ResearchLog {
   log_date: string;
   workstream: WorkstreamType;
   content_markdown: string;
-  parameters_json: Record<string, string | number>;
+  parameters_json: Record<string, any>;
   linked_file_ids: string[];
   author_id: string;
   author_name?: string;

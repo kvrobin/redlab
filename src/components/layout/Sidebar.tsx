@@ -3,6 +3,8 @@
 import React from 'react';
 import { useStore } from '@/lib/store';
 import { formatNumber } from '@/lib/utils';
+import { RedLabLogo } from '@/components/brand/RedLabLogo';
+import Link from 'next/link';
 import {
   LayoutDashboard,
   KanbanSquare,
@@ -12,16 +14,24 @@ import {
   CalendarCheck2,
   GraduationCap,
   FlaskConical,
-  AlertTriangle,
-  Flame,
+  ShieldCheck,
+  Settings,
+  X,
 } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export function Sidebar({
+  activeTab,
+  setActiveTab,
+  isMobileOpen = false,
+  onCloseMobile,
+}: SidebarProps) {
   const { tasks, milestones, meetings, researchLogs, isSupervisorMode } = useStore();
 
   const totalWords = milestones.reduce((acc, m) => acc + (m.current_words || 0), 0);
@@ -46,8 +56,17 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     },
     {
       id: 'thesis',
+      label: 'Thesis & TDK Studio',
+      sublabel: 'Fejezet-építő & Mátrix',
+      icon: GraduationCap,
+      highlight: true,
+      badge: 'ÚJ',
+      badgeColor: 'bg-rose-600 font-bold',
+    },
+    {
+      id: 'milestones',
       label: 'Haladási Terv',
-      sublabel: 'Milestones & Kézirat',
+      sublabel: 'Mérföldkövek & Szignók',
       icon: BookOpenCheck,
       badge: pendingApprovals > 0 ? `${pendingApprovals} szignó` : undefined,
       badgeColor: 'bg-amber-600',
@@ -64,7 +83,6 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
       label: 'Időpont-egyeztető',
       sublabel: 'Smart Scheduler',
       icon: CalendarCheck2,
-      // Piros jelvény, ha van szavazásra váró vagy reschedule_needed megbeszélés
       badge: hasUrgentMeeting ? `${urgentMeetings.length} szavazás` : undefined,
       badgeColor: 'bg-red-600 animate-pulse font-bold',
       isUrgent: hasUrgentMeeting,
@@ -92,34 +110,40 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
       id: 'supervisor',
       label: 'Témavezetői Központ',
       sublabel: 'Executive Hub',
-      icon: GraduationCap,
-      highlight: true,
+      icon: ShieldCheck,
       badge: pendingApprovals > 0 ? `${pendingApprovals} függőben` : undefined,
       badgeColor: 'bg-purple-600',
     },
+    {
+      id: 'settings',
+      label: 'Beállítások & Webhook',
+      sublabel: 'Értesítések & Meghívók',
+      icon: Settings,
+    },
   ];
 
-  return (
-    <aside className="w-64 min-h-screen bg-[#0C0E15] border-r border-[#1E2230] flex flex-col justify-between shrink-0 select-none">
+  const handleNavClick = (id: string) => {
+    setActiveTab(id);
+    if (onCloseMobile) {
+      onCloseMobile();
+    }
+  };
+
+  const sidebarContent = (
+    <div className="flex flex-col justify-between h-full">
       <div>
         {/* Brand Logo & Name */}
-        <div className="p-5 border-b border-[#1E2230] flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-rose-700 flex items-center justify-center shadow-lg shadow-rose-950/60 border border-rose-400/30">
-            <FlaskConical className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-1.5">
-              <span className="font-extrabold text-base tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-rose-400 to-rose-200">
-                RED LAB
-              </span>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-700/50 shadow-sm shadow-rose-900/40">
-                BÉTA
-              </span>
-            </div>
-            <p className="text-[10px] font-mono text-slate-400 tracking-tight">
-              Robin • Emma • Domi
-            </p>
-          </div>
+        <div className="p-4 border-b border-[#1E2230] flex items-center justify-between">
+          <RedLabLogo variant="full" size="md" />
+          {onCloseMobile && (
+            <button
+              onClick={onCloseMobile}
+              className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 touch-target flex items-center justify-center transition-colors"
+              aria-label="Menü bezárása"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Main Navigation */}
@@ -133,12 +157,12 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all group ${
+                onClick={() => handleNavClick(item.id)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all group touch-target ${
                   isActive
                     ? 'bg-rose-950/40 text-rose-200 border border-rose-800/50 shadow-sm shadow-rose-950/50'
                     : item.highlight
-                    ? 'text-purple-300 hover:bg-purple-950/30 hover:text-purple-100 border border-transparent'
+                    ? 'text-rose-300 hover:bg-rose-950/30 hover:text-rose-100 border border-rose-900/30'
                     : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200 border border-transparent'
                 }`}
               >
@@ -148,7 +172,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
                       isActive
                         ? 'text-rose-400'
                         : item.highlight
-                        ? 'text-purple-400'
+                        ? 'text-rose-400'
                         : 'text-slate-400 group-hover:text-slate-200'
                     }`}
                   />
@@ -158,7 +182,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
                         isActive
                           ? 'text-white'
                           : item.highlight
-                          ? 'text-purple-200'
+                          ? 'text-white'
                           : 'text-slate-300 group-hover:text-white'
                       }`}
                     >
@@ -234,7 +258,43 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
             Ütemterv szerint
           </span>
         </div>
+
+        <div className="pt-2.5 mt-2.5 border-t border-[#1E2230]/70 flex items-center justify-between text-[10px] font-mono">
+          <Link
+            href="/privacy"
+            onClick={() => onCloseMobile && onCloseMobile()}
+            className="text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1"
+          >
+            Adatvédelem & Jogi nyilatkozat
+          </Link>
+          <span className="text-slate-600">Béta</span>
+        </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Fixed Sidebar */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:min-h-screen bg-[#0C0E15] border-r border-[#1E2230] shrink-0 select-none">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Drawer (Slide-Over) */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          {/* Backdrop */}
+          <div
+            onClick={onCloseMobile}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          />
+
+          {/* Slide-over panel */}
+          <div className="relative w-72 max-w-[85vw] h-full bg-[#0C0E15]/95 backdrop-blur-2xl border-r border-[#1E2230] shadow-2xl z-10 animate-in slide-in-from-left duration-250 overflow-y-auto">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

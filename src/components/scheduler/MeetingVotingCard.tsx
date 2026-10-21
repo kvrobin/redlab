@@ -30,6 +30,7 @@ import {
 import { formatDateHungarian } from '@/lib/utils';
 import { downloadIcsFile, generateGoogleCalendarUrl } from '@/lib/calendar';
 import { castVoteAction, addSlotAction, confirmSlotAction, saveMeetingNotesAction, createTaskFromMinutesAction } from '@/app/actions/scheduler';
+import { AiCopilotModal } from '@/components/ai/AiCopilotModal';
 import { toast } from 'sonner';
 
 interface MeetingVotingCardProps {
@@ -66,6 +67,7 @@ export function MeetingVotingCard({ meeting }: MeetingVotingCardProps) {
       `### Konzultáció Emlékeztető (${meeting.title})\n\n**Résztvevők:** ${profiles.map((p) => p.full_name).join(', ')}\n\n#### Megbeszélt pontok:\n- Sprint előrehaladás: mérési eredmények átbeszélése\n- Felmerült hibák: konvergencia instabilitás 3. tesztnél\n\n#### Akcióterv (Következő lépések):\n- [ ] Szenzor kalibráció megismétlése 5 Celsius fokon\n- [ ] Fejezet bevezető revíziója a témavezetői észrevételek szerint`
   );
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [isAiTasksModalOpen, setIsAiTasksModalOpen] = useState(false);
 
   // Generate task from minutes state
   const [quickTaskTitle, setQuickTaskTitle] = useState('');
@@ -400,7 +402,8 @@ export function MeetingVotingCard({ meeting }: MeetingVotingCardProps) {
           )}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-[#1E2230] bg-slate-950/40">
+        {/* Desktop Table View (>= 640px) */}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-[#1E2230] bg-slate-950/40">
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="border-b border-[#1E2230] text-slate-400 font-mono text-[10px] uppercase">
@@ -583,6 +586,156 @@ export function MeetingVotingCard({ meeting }: MeetingVotingCardProps) {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Responsive Cards View (< 640px) */}
+        <div className="sm:hidden space-y-3">
+          {meeting.slots.map((slot) => {
+            const isThisSlotConfirmed = meeting.confirmed_slot_id === slot.id;
+            const votesMap = slot.votes || {};
+            const upvoteCount = Object.values(votesMap).filter((v) => v.vote === 'upvote').length;
+            const downvoteCount = Object.values(votesMap).filter((v) => v.vote === 'downvote').length;
+            const ifNeededCount = Object.values(votesMap).filter((v) => v.vote === 'if_needed').length;
+            const myVote = votesMap[currentProfile.id]?.vote;
+
+            const slotComments = Object.entries(votesMap)
+              .filter(([_, v]) => v.comment && v.comment.trim().length > 0)
+              .map(([voterId, v]) => {
+                const voterProfile = profiles.find((p) => p.id === voterId);
+                return {
+                  voterName: voterProfile?.full_name || 'Kutató',
+                  badgeColor: voterProfile?.badge_color || '#E11D48',
+                  vote: v.vote,
+                  comment: v.comment,
+                };
+              });
+
+            return (
+              <div
+                key={slot.id}
+                className={`p-3.5 rounded-2xl border transition-all space-y-3 ${
+                  isThisSlotConfirmed
+                    ? 'bg-emerald-950/25 border-emerald-500/50'
+                    : downvoteCount > 0
+                    ? 'bg-rose-950/20 border-rose-900/50'
+                    : 'bg-slate-950/60 border-[#1E2230]'
+                }`}
+              >
+                {/* Slot Top: Time & Tally */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-bold text-sm text-slate-100" suppressHydrationWarning>
+                      {formatDateHungarian(slot.start_time)}
+                    </div>
+                    <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                      {meeting.duration_minutes} perc • Javasolta:{' '}
+                      {profiles.find((p) => p.id === slot.proposed_by)?.full_name || 'Csapattag'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-1.5 font-mono text-xs px-2 py-0.5 rounded-lg bg-slate-900 border border-[#1E2230] shrink-0">
+                    <span className="text-emerald-400 font-bold">+{upvoteCount}</span>
+                    {ifNeededCount > 0 && <span className="text-amber-400 font-bold">?{ifNeededCount}</span>}
+                    {downvoteCount > 0 && <span className="text-rose-400 font-bold">-{downvoteCount}</span>}
+                  </div>
+                </div>
+
+                {/* Participant badges */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-[#1E2230]/60">
+                  <span className="text-[10px] font-mono text-slate-500">Szavazatok:</span>
+                  {profiles.map((p) => (
+                    <div key={p.id} className="flex items-center gap-1">
+                      <span
+                        className="w-4 h-4 rounded-full text-[8px] font-bold text-white flex items-center justify-center"
+                        style={{ backgroundColor: p.badge_color }}
+                      >
+                        {p.short_code}
+                      </span>
+                      {getVoteBadge(votesMap[p.id])}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Big Full-width Mobile Voting Action Buttons (min 44px height) */}
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleVoteClick(slot.id, 'upvote')}
+                    className={`min-h-[44px] py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 touch-target ${
+                      myVote === 'upvote'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60 ring-2 ring-emerald-400'
+                        : 'bg-slate-900 text-emerald-400 border border-emerald-900/50 hover:bg-emerald-950/40'
+                    }`}
+                  >
+                    <ThumbsUp className="w-4 h-4 shrink-0" />
+                    <span>Megfelel</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVoteClick(slot.id, 'if_needed')}
+                    className={`min-h-[44px] py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 touch-target ${
+                      myVote === 'if_needed'
+                        ? 'bg-amber-600 text-white shadow-md shadow-amber-950/60 ring-2 ring-amber-400'
+                        : 'bg-slate-900 text-amber-400 border border-amber-900/50 hover:bg-amber-950/40'
+                    }`}
+                  >
+                    <HelpCircle className="w-4 h-4 shrink-0" />
+                    <span>Ha muszáj</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVoteClick(slot.id, 'downvote')}
+                    className={`min-h-[44px] py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 touch-target ${
+                      myVote === 'downvote'
+                        ? 'bg-rose-600 text-white shadow-md shadow-rose-950/60 ring-2 ring-rose-400'
+                        : 'bg-slate-900 text-rose-400 border border-rose-900/50 hover:bg-rose-950/40'
+                    }`}
+                  >
+                    <ThumbsDown className="w-4 h-4 shrink-0" />
+                    <span>Ütközik</span>
+                  </button>
+                </div>
+
+                {/* Finalize button or badge on mobile */}
+                <div className="pt-1 flex items-center justify-end">
+                  {isThisSlotConfirmed ? (
+                    <span className="text-xs font-mono text-emerald-400 font-bold flex items-center">
+                      <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-400" />
+                      Hivatalosan Véglegesített Időpont
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmSlot(slot.id)}
+                      className="w-full min-h-[40px] py-2 px-3 rounded-xl bg-slate-900 hover:bg-emerald-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Időpont Véglegesítése</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Slot comments */}
+                {slotComments.length > 0 && (
+                  <div className="space-y-1.5 pt-2 border-t border-[#1E2230]/60">
+                    {slotComments.map((cm, idx) => (
+                      <div
+                        key={idx}
+                        className="text-[11px] text-slate-300 pl-2.5 border-l-2 border-rose-500/60 leading-snug"
+                      >
+                        <strong className="text-rose-300">
+                          {cm.voterName} ({cm.vote === 'downvote' ? 'Ütközik' : 'Ha muszáj'}):
+                        </strong>{' '}
+                        <em>„{cm.comment}”</em>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* 6. CONFIRMED MEETING ACTIONS: Calendar Exports (.ics, Google Calendar) */}
@@ -651,18 +804,29 @@ export function MeetingVotingCard({ meeting }: MeetingVotingCardProps) {
           <div className="mt-3 p-4 rounded-xl bg-slate-950 border border-[#1E2230] space-y-4 animate-in fade-in">
             {/* Markdown notes editor */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                 <label className="text-xs font-semibold text-slate-300">
                   Markdown Jegyzőkönyv Szövege:
                 </label>
-                <button
-                  onClick={handleSaveNotes}
-                  disabled={isSavingNotes}
-                  className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center space-x-1 shadow-sm"
-                >
-                  <Send className="w-3 h-3" />
-                  <span>{isSavingNotes ? 'Mentés...' : 'Jegyzőkönyv Mentése'}</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAiTasksModalOpen(true)}
+                    className="px-3 py-1 rounded-lg bg-gradient-to-r from-red-600/30 to-rose-600/30 hover:from-red-600/50 hover:to-rose-600/50 text-rose-200 border border-rose-500/40 text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm"
+                    title="Gemini AI elemzi a jegyzőkönyvet és felelősöket rendel a teendőkhöz"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                    <span>✨ Feladatok kinyerése és kiosztása AI-val</span>
+                  </button>
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={isSavingNotes}
+                    className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center space-x-1 shadow-sm"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>{isSavingNotes ? 'Mentés...' : 'Jegyzőkönyv Mentése'}</span>
+                  </button>
+                </div>
               </div>
               <textarea
                 value={notesContent}
@@ -773,6 +937,17 @@ export function MeetingVotingCard({ meeting }: MeetingVotingCardProps) {
           </div>
         </div>
       )}
+
+      {/* AI Copilot Task Extraction Modal */}
+      <AiCopilotModal
+        isOpen={isAiTasksModalOpen}
+        onClose={() => setIsAiTasksModalOpen(false)}
+        mode="extract_tasks"
+        initialData={{
+          meetingTitle: meeting.title,
+          meetingNotes: notesContent,
+        }}
+      />
     </div>
   );
 }
