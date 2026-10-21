@@ -135,7 +135,5 @@ A rendszer központi szerveroldali értesítő motorja (`src/lib/automation/noti
 | `MEETING_PROPOSED` | Új konzultáció vagy heti szinkron időpont-szavazás kiírása | Témavezető Email + Discord |
 | `MEETING_RESCHEDULE_NEEDED` | Minden idősáv ütközött (Consensus fail trigger) | Sürgős Discord Riasztás + In-App |
 | `MEETING_CONFIRMED` | Megbeszélés véglegesítve és Meet link rögzítve | Csapat Naptár + Discord + Email |
-
-## 📜 Licenc & Szakmai Hivatkozás
 Készült a Budapesti Műszaki és Gazdaságtudományi Egyetem (BME) tudományos kutatásaihoz és diplomatervezési munkájához.
 Minden jog fenntartva • **RED Lab 2026**
