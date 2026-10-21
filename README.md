@@ -136,17 +136,6 @@ A rendszer központi szerveroldali értesítő motorja (`src/lib/automation/noti
 | `MEETING_RESCHEDULE_NEEDED` | Minden idősáv ütközött (Consensus fail trigger) | Sürgős Discord Riasztás + In-App |
 | `MEETING_CONFIRMED` | Megbeszélés véglegesítve és Meet link rögzítve | Csapat Naptár + Discord + Email |
 
----
-
-## 👥 Csapattagok és Szerepkörök
-
-- 🔴 **Robin (`R`)**: Rendszeradminisztráció, Szakdolgozat Integráció & Kézirat (Dry Lab)
-- 🌸 **Emma (`E`)**: Reagens Előkészítés, PDMS Plazmatisztítás & Cseppgenerálás (Wet Lab)
-- 🟠 **Domi (`D`)**: CAD Tervezés, 3D Nyomtatás & OpenFOAM CFD Szimuláció (Dry Lab / Hardware)
-- 🟣 **Prof. Dr. Kovács Gergely (`P`)**: Témavezető Egyetemi Docens (Executive Hub, Bírálat & Szignó)
-
----
-
 ## 📜 Licenc & Szakmai Hivatkozás
 Készült a Budapesti Műszaki és Gazdaságtudományi Egyetem (BME) tudományos kutatásaihoz és diplomatervezési munkájához.
 Minden jog fenntartva • **RED Lab 2026**
